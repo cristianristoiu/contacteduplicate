@@ -75,10 +75,10 @@ Construirea unei aplicații mobile Android și iOS care găsește, verifică și
 - ~~<WORK_CODE>0054 - Creare widget `ContactAvatar`: implementare fallback pentru inițiale (extragere prima literă din nume).~~ COMPLETAT (JNI0054)
 - ~~<WORK_CODE>0055 - Creare widget `ContactAvatar`: aplicare paletă de culori pentru fundalul avatarului bazat pe hash-ul numelui.~~ COMPLETAT (JNI0055)
 - ~~<WORK_CODE>0056 - Creare widget `ContactAvatar`: adăugare suport pentru bordură și umbră conform `theme-guide.md`.~~ COMPLETAT (JNI0056)
-- <WORK_CODE>0057 - Implementare `AppDivider`: creare widget personalizat care folosește `AppColors.lightBorder` și `AppColors.darkBorder`.
-- <WORK_CODE>0058 - Implementare `AppDivider`: adăugare parametri pentru grosime, indentare și orientare (vertical/orizontal).
-- <WORK_CODE>0059 - Creare widget `AppLoadingIndicator`: implementare animație de rotație folosind `brandBlue500` și `brandViolet500`.
-- <WORK_CODE>0060 - Creare widget `AppLoadingIndicator`: adăugare suport pentru dimensiuni variabile (mic, mediu, mare).
+- ~~<WORK_CODE>0057 - Implementare `AppDivider`: creare widget personalizat care folosește `AppColors.lightBorder` și `AppColors.darkBorder`.~~ COMPLETAT (JNI0057)
+- ~~<WORK_CODE>0058 - Implementare `AppDivider`: adăugare parametri pentru grosime, indentare și orientare (vertical/orizontal).~~ COMPLETAT (JNI0058)
+- ~~<WORK_CODE>0059 - Creare widget `AppLoadingIndicator`: implementare animație de rotație folosind `brandBlue500` și `brandViolet500`.~~ COMPLETAT (JNI0059)
+- ~~<WORK_CODE>0060 - Creare widget `AppLoadingIndicator`: adăugare suport pentru dimensiuni variabile (mic, mediu, mare).~~ COMPLETAT (JNI0060)
 - <WORK_CODE>0061 - Implementare `AppEmptyState`: creare layout de bază cu iconiță centrală, titlu și descriere.
 - <WORK_CODE>0062 - Implementare `AppEmptyState`: adăugare suport pentru ilustrații SVG din `AppAssets`.
 - <WORK_CODE>0063 - Implementare `AppEmptyState`: integrare buton de acțiune opțional (ex: "Scanează acum").
