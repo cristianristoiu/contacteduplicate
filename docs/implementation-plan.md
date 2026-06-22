@@ -25,26 +25,26 @@ Construirea unei aplicatii mobile Android si iOS care gaseste, verifica si unest
 
 ## Faza 0: Infrastructura si Tema (Commit-uri 0001-0100)
 
-- <WORK_CODE>0001 - Initializare proiect Flutter gol.
-- <WORK_CODE>0002 - Configurare .gitignore detaliat pentru Flutter/Dart.
-- <WORK_CODE>0003 - Adaugare dependente de baza in pubspec.yaml (provider, flutter_svg, path_provider).
-- <WORK_CODE>0004 - Configurare linting reguli stricte (analysis_options.yaml).
-- <WORK_CODE>0005 - Creare structura foldere: lib/core, lib/features, lib/shared.
-- <WORK_CODE>0006 - Implementare sistem de culori conform theme-guide.md.
-- <WORK_CODE>0007 - Implementare clasa de text styles conform theme-guide.md.
-- <WORK_CODE>0008 - Configurare ThemeData pentru Light Mode.
-- <WORK_CODE>0009 - Configurare ThemeData pentru Dark Mode.
-- <WORK_CODE>0010 - Implementare ThemeProvider pentru gestionarea temei (Light/Dark/System).
-- <WORK_CODE>0011 - Adaugare asset-uri logo (SVG) in proiect.
-- <WORK_CODE>0012 - Implementare Splash Screen de baza.
-- <WORK_CODE>0013 - Configurare rute principale (go_router sau similar).
-- <WORK_CODE>0014 - Implementare Layout principal (Scaffold custom).
-- <WORK_CODE>0015 - Creare widget-uri de baza pentru butoane (PrimaryButton).
-- <WORK_CODE>0016 - Creare widget-uri de baza pentru butoane (SecondaryButton).
-- <WORK_CODE>0017 - Implementare card-uri UI generice cu design-ul din theme-guide.md.
-- <WORK_CODE>0018 - Configurare localization (suport limba romana si engleza).
-- <WORK_CODE>0019 - Implementare sistem elementar de logging (fara PII).
-- <WORK_CODE>0020-0100 - Rafinament UI componente, unit tests pentru core, configurari CI/CD de baza.
+- ~~<WORK_CODE>0001 - Initializare proiect Flutter gol.~~ COMPLETAT: CHT0018, CHT0038-CHT0045
+- ~~<WORK_CODE>0002 - Configurare .gitignore detaliat pentru Flutter/Dart.~~ COMPLETAT: CHT0019
+- ~~<WORK_CODE>0003 - Adaugare dependente de baza in pubspec.yaml (provider, flutter_svg, path_provider).~~ COMPLETAT: CHT0018
+- ~~<WORK_CODE>0004 - Configurare linting reguli stricte (analysis_options.yaml).~~ COMPLETAT: CHT0020
+- ~~<WORK_CODE>0005 - Creare structura foldere: lib/core, lib/features, lib/shared.~~ COMPLETAT: CHT0022-CHT0037
+- ~~<WORK_CODE>0006 - Implementare sistem de culori conform theme-guide.md.~~ COMPLETAT: CHT0024
+- ~~<WORK_CODE>0007 - Implementare clasa de text styles conform theme-guide.md.~~ COMPLETAT: CHT0025
+- ~~<WORK_CODE>0008 - Configurare ThemeData pentru Light Mode.~~ COMPLETAT: CHT0026
+- ~~<WORK_CODE>0009 - Configurare ThemeData pentru Dark Mode.~~ COMPLETAT: CHT0026
+- ~~<WORK_CODE>0010 - Implementare ThemeProvider pentru gestionarea temei (Light/Dark/System).~~ COMPLETAT: CHT0027
+- ~~<WORK_CODE>0011 - Adaugare asset-uri logo (SVG) in proiect.~~ COMPLETAT: CHT0021
+- ~~<WORK_CODE>0012 - Implementare Splash Screen de baza.~~ COMPLETAT: CHT0035
+- ~~<WORK_CODE>0013 - Configurare rute principale (go_router sau similar).~~ COMPLETAT: CHT0030
+- ~~<WORK_CODE>0014 - Implementare Layout principal (Scaffold custom).~~ COMPLETAT: CHT0034
+- ~~<WORK_CODE>0015 - Creare widget-uri de baza pentru butoane (PrimaryButton).~~ COMPLETAT: CHT0031
+- ~~<WORK_CODE>0016 - Creare widget-uri de baza pentru butoane (SecondaryButton).~~ COMPLETAT: CHT0032
+- ~~<WORK_CODE>0017 - Implementare card-uri UI generice cu design-ul din theme-guide.md.~~ COMPLETAT: CHT0033
+- ~~<WORK_CODE>0018 - Configurare localization (suport limba romana si engleza).~~ COMPLETAT: CHT0028
+- ~~<WORK_CODE>0019 - Implementare sistem elementar de logging (fara PII).~~ COMPLETAT: CHT0029
+- <WORK_CODE>0020-0100 - Rafinament UI componente, unit tests pentru core, configurari CI/CD de baza. BLOCAT PENTRU APROBARE: utilizatorul a cerut momentan doar parti brute, fara rafinari/optimizari.
 
 ## Faza 1: Onboarding si Permisiuni (Commit-uri 0101-0200)
 
