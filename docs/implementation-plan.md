@@ -70,56 +70,56 @@ Construirea unei aplicații mobile Android și iOS care găsește, verifică și
 - ~~<WORK_CODE>0049 - Renumerotare plan implementare.~~ COMPLETAT (CHT0049)
 - ~~<WORK_CODE>0050 - Refacere plan de implementare detaliat (1000 commit-uri) și mapare istoric.~~ COMPLETAT (JNI0050)
 - ~~<WORK_CODE>0051 - Creare widget `AppLogo` cu suport pentru diferite dimensiuni.~~ COMPLETAT (JNI0051)
-- ~~<WORK_CODE>0052 - Implementare widget `StatusBadge` pentru scorul de încredere.~~ COMPLETAT (JNI0052)
-- <WORK_CODE>0053 - Creare widget `ContactAvatar` cu fallback la inițiale.
-- <WORK_CODE>0054 - Implementare `AppDivider` personalizat conform temei.
-- <WORK_CODE>0055 - Creare widget `AppLoadingIndicator` (animație custom).
-- <WORK_CODE>0056 - Implementare `AppEmptyState` widget pentru liste goale.
-- <WORK_CODE>0057 - Creare `AppErrorState` widget cu buton de retry.
-- <WORK_CODE>0058 - Implementare `AppBottomBar` (Custom Bottom Navigation).
-- <WORK_CODE>0059 - Rafinare `PrimaryButton`: adăugare stare de loading.
-- <WORK_CODE>0060 - Rafinare `PrimaryButton`: adăugare stare de disabled.
-- <WORK_CODE>0061 - Creare `IconButton` personalizat pentru acțiuni rapide.
-- <WORK_CODE>0062 - Implementare widget `SectionHeader` pentru liste grupate.
-- <WORK_CODE>0063 - Creare widget `SettingsTile` pentru ecranul de setări.
-- <WORK_CODE>0064 - Adăugare `AppSwitch` personalizat (tema dark/light).
-- <WORK_CODE>0065 - Implementare widget `AppTextField` pentru căutare/filtrare.
-- <WORK_CODE>0066 - Creare `BadgeCount` widget pentru notificări/număr duplicate.
-- <WORK_CODE>0067 - Implementare `AnimatedCard` pentru tranziții fine în liste.
-- <WORK_CODE>0068 - Creare widget `ProgressRing` pentru Dashboard.
-- <WORK_CODE>0069 - Adăugare suport pentru gradienți în widget-ul `AppCard`.
-- <WORK_CODE>0070 - Implementare sistem de umbre (`AppBoxShadows`).
-- <WORK_CODE>0071 - Creare widget `InfoBox` pentru mesaje de ajutor/tips.
-- <WORK_CODE>0072 - Rafinare Splash Screen cu animație de tip "fade-in".
-- <WORK_CODE>0073 - Implementare `AppDialog` (Base Dialog widget).
-- <WORK_CODE>0074 - Creare `ConfirmationDialog` pentru acțiuni critice.
-- <WORK_CODE>0075 - Implementare `AppBottomSheet` (Base Bottom Sheet).
-- <WORK_CODE>0076 - Creare `SelectionListTile` pentru alegerea câmpurilor la merge.
-- <WORK_CODE>0077 - Adăugare suport pentru "Haptic Feedback" la butoane.
-- <WORK_CODE>0078 - Creare widget `MergeFieldRow` pentru compararea datelor.
-- <WORK_CODE>0079 - Implementare `SearchEmptyState` specific pentru căutări fără rezultat.
-- <WORK_CODE>0080 - Creare widget `SummaryCard` pentru statistici rapide.
-- <WORK_CODE>0081 - Implementare `AppSkeletonLoader` pentru Dashboard.
-- <WORK_CODE>0082 - Creare `SkeletonLoader` pentru lista de contacte.
-- <WORK_CODE>0083 - Adăugare `AppBlur` widget pentru fundaluri modal.
-- <WORK_CODE>0084 - Implementare widget `LanguageSelector` (dropdown/dialog).
-- <WORK_CODE>0085 - Creare `ThemeSelector` widget (toggle/list).
-- <WORK_CODE>0086 - Adăugare animație de tip "shimmer" pentru loading.
-- <WORK_CODE>0087 - Implementare `AppSnackBar` personalizat pentru notificări.
-- <WORK_CODE>0088 - Creare `AppBanner` pentru avertismente (ex: lipsă backup).
-- <WORK_CODE>0089 - Adăugare widget `SafeMergeCheck` (iconiță stare backup).
-- <WORK_CODE>0090 - Implementare `AppScrollbar` personalizat.
-- <WORK_CODE>0091 - Creare widget `PulseAnimation` pentru elemente ce necesită atenție.
-- <WORK_CODE>0092 - Implementare `ConfettiAnimation` pentru succes merge.
-- <WORK_CODE>0093 - Creare widget `ComparisonTable` pentru Detalii Merge.
-- <WORK_CODE>0094 - Adăugare suport pentru RTL în widget-uri.
-- <WORK_CODE>0095 - Creare widget `StepIndicator` pentru procese multi-pas.
-- <WORK_CODE>0096 - Implementare `AppTooltip` pentru explicații termeni tehnici.
-- <WORK_CODE>0097 - Creare widget `InteractiveAvatar` (mărire la tap).
-- <WORK_CODE>0098 - Adăugare widget `AutoMergeToggle` cu explicație scor.
-- <WORK_CODE>0099 - Implementare `AppHeader` (SliverAppBar custom).
-- <WORK_CODE>0100 - Creare `AppRefreshIndicator` (Pull to refresh custom).
-- <WORK_CODE>0101 - Audit UI: verificare consistență culori și spațieri.
+- ~~<WORK_CODE>0052 - Implement argument `StatusBadge` pentru scorul de încredere.~~ COMPLETAT (JNI0052)
+- ~~<WORK_CODE>0053 - Creare widget `ContactAvatar`: definire structură de bază și suport pentru imagine circulară.~~ COMPLETAT (JNI0053)
+- ~~<WORK_CODE>0054 - Creare widget `ContactAvatar`: implementare fallback pentru inițiale (extragere prima literă din nume).~~ COMPLETAT (JNI0054)
+- ~~<WORK_CODE>0055 - Creare widget `ContactAvatar`: aplicare paletă de culori pentru fundalul avatarului bazat pe hash-ul numelui.~~ COMPLETAT (JNI0055)
+- ~~<WORK_CODE>0056 - Creare widget `ContactAvatar`: adăugare suport pentru bordură și umbră conform `theme-guide.md`.~~ COMPLETAT (JNI0056)
+- <WORK_CODE>0057 - Implementare `AppDivider`: creare widget personalizat care folosește `AppColors.lightBorder` și `AppColors.darkBorder`.
+- <WORK_CODE>0058 - Implementare `AppDivider`: adăugare parametri pentru grosime, indentare și orientare (vertical/orizontal).
+- <WORK_CODE>0059 - Creare widget `AppLoadingIndicator`: implementare animație de rotație folosind `brandBlue500` și `brandViolet500`.
+- <WORK_CODE>0060 - Creare widget `AppLoadingIndicator`: adăugare suport pentru dimensiuni variabile (mic, mediu, mare).
+- <WORK_CODE>0061 - Implementare `AppEmptyState`: creare layout de bază cu iconiță centrală, titlu și descriere.
+- <WORK_CODE>0062 - Implementare `AppEmptyState`: adăugare suport pentru ilustrații SVG din `AppAssets`.
+- <WORK_CODE>0063 - Implementare `AppEmptyState`: integrare buton de acțiune opțional (ex: "Scanează acum").
+- <WORK_CODE>0064 - Creare `AppErrorState`: implementare widget pentru afișarea erorilor cu iconiță de avertizare (`status.error`).
+- <WORK_CODE>0065 - Creare `AppErrorState`: adăugare buton de "Retry" cu callback configurabil.
+- <WORK_CODE>0066 - Implementare `AppBottomBar`: definire structură `BottomNavigationBar` custom cu 4 itemi (Acasă, Duplicate, Backup, Setări).
+- <WORK_CODE>0067 - Implementare `AppBottomBar`: aplicare stiluri vizuale (blur fundal, selecție cu gradient) conform mockup-ului.
+- <WORK_CODE>0068 - Rafinare `PrimaryButton`: adăugare stare de loading (înlocuire text cu `AppLoadingIndicator` mic).
+- <WORK_CODE>0069 - Rafinare `PrimaryButton`: implementare stare de `disabled` (opacitate redusă, ignorare tap).
+- <WORK_CODE>0070 - Rafinare `PrimaryButton`: adăugare suport pentru iconiță în stânga sau dreapta textului.
+- <WORK_CODE>0071 - Creare `IconButton` personalizat: suport pentru diferite forme (circular, pătrat rotunjit) și dimensiuni.
+- <WORK_CODE>0072 - Creare `IconButton` personalizat: implementare efect de "splash" controlat conform temei.
+- <WORK_CODE>0073 - Implementare widget `SectionHeader`: layout pentru titlu de secțiune cu opțiune de "Vezi tot".
+- <WORK_CODE>0074 - Implementare widget `SectionHeader`: stilizare text conform `app_text_styles.dart` (Label/H2).
+- <WORK_CODE>0075 - Creare widget `SettingsTile`: implementare rând pentru setări cu iconiță, titlu, subtitlu și widget de tip "trailing".
+- <WORK_CODE>0076 - Creare widget `SettingsTile`: adăugare suport pentru diferite tipuri de trailing (Switch, Arrow, Text).
+- <WORK_CODE>0077 - Adăugare `AppSwitch`: personalizare `Switch` nativ pentru a folosi culorile brandului în ambele teme.
+- <WORK_CODE>0078 - Implementare widget `AppTextField`: creare input text cu border rotunjit, suport pentru iconiță de căutare și buton de ștergere.
+- <WORK_CODE>0079 - Implementare widget `AppTextField`: adăugare validări vizuale (error border, hint style).
+- <WORK_CODE>0080 - Creare `BadgeCount`: widget circular mic pentru afișarea numărului de duplicate găsite pe iconițele din menu.
+- <WORK_CODE>0081 - Implementare `AnimatedCard`: adăugare animație de tip "scale" sau "slide" la apariția în listă a cardului de contact.
+- <WORK_CODE>0082 - Creare widget `ProgressRing`: implementare cerc de progres pentru Dashboard folosind `CustomPainter`.
+- <WORK_CODE>0083 - Creare widget `ProgressRing`: adăugare animație de umplere progresivă și text central (procent).
+- <WORK_CODE>0084 - Adăugare suport pentru gradienți în `AppCard`: implementare proprietate `gradientBackground`.
+- <WORK_CODE>0085 - Implementare sistem de umbre (`AppBoxShadows`): definire set de umbre (soft, medium, hard) ca extensie la `ThemeData`.
+- <WORK_CODE>0086 - Creare widget `InfoBox`: layout pentru mesaje informative cu fundal `light.surfaceMuted` și iconiță de info.
+- <WORK_CODE>0087 - Rafinare Splash Screen: implementare animație complexă de apariție logo și titlu (secvențial).
+- <WORK_CODE>0088 - Implementare `AppDialog`: creare widget de bază pentru dialoguri cu fundal blurat și margini rotunjite (`radius.lg`).
+- <WORK_CODE>0089 - Creare `ConfirmationDialog`: implementare dialog specific cu două butoane și mesaj de confirmare.
+- <WORK_CODE>0090 - Implementare `AppBottomSheet`: creare widget de bază pentru ecrane glisante de jos în sus.
+- <WORK_CODE>0091 - Creare `SelectionListTile`: implementare rând cu checkbox/radio pentru selectarea câmpurilor în Merge Detail.
+- <WORK_CODE>0092 - Adăugare suport pentru "Haptic Feedback": integrare `HapticFeedback.lightImpact()` la interacțiunea cu butoanele.
+- <WORK_CODE>0093 - Creare widget `MergeFieldRow`: layout pentru compararea a două valori (Stânga vs Dreapta) cu evidențierea diferențelor.
+- <WORK_CODE>0094 - Implementare `SearchEmptyState`: variantă de empty state specifică pentru rezultate de căutare vide.
+- <WORK_CODE>0095 - Creare widget `SummaryCard`: card compact pentru statistici (ex: "340 MB eliberați").
+- <WORK_CODE>0096 - Implementare `AppSkeletonLoader`: creare efect de "shimmer" pentru dashboard (placeholder cerc și linii).
+- <WORK_CODE>0097 - Creare `SkeletonLoader` pentru lista de contacte: rânduri placeholder cu avatar și text simulat.
+- <WORK_CODE>0098 - Adăugare `AppBlur`: widget utilitar pentru aplicarea efectului de `BackdropFilter` (Glassmorphism).
+- <WORK_CODE>0099 - Implementare widget `LanguageSelector`: dialog cu steaguri și nume limbi pentru schimbarea localizării.
+- <WORK_CODE>0100 - Creare `ThemeSelector`: widget tip toggle sau listă pentru alegerea Light/Dark/System.
+- <WORK_CODE>0101 - Audit UI: verificare manuală a tuturor widget-urilor create față de `theme-guide.md` și corectare discrepanțe.
 
 ### Localization & Asset Management (0102 - 0150)
 - <WORK_CODE>0102 - Configurare `Intl` pentru suport plural (ex: "1 contact", "5 contacte").

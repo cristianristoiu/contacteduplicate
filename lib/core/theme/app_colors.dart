@@ -30,6 +30,10 @@ class AppColors {
   static const Color error = Color(0xFFEF4444);
   static const Color info = Color(0xFF25D8FF);
 
+  static const Color brandBlue600 = Color(0xFF1F8BFF);
+  static const Color statusSuccess = Color(0xFF24B47E);
+  static const Color statusWarning = Color(0xFFFFB020);
+
   static const LinearGradient brandGradient = LinearGradient(
     colors: <Color>[blue500, violet400],
     begin: Alignment.topLeft,
