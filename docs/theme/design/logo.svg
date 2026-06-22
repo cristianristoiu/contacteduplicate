@@ -1,1 +1,96 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><linearGradient id="bg" x1="80" y1="80" x2="944" y2="944" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#061126"/><stop offset="0.48" stop-color="#111f4c"/><stop offset="1" stop-color="#5b35d5"/></linearGradient><linearGradient id="cardBlue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#25d8ff"/><stop offset="1" stop-color="#8d5cff"/></linearGradient><linearGradient id="cardWhite" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef6ff"/><stop offset="1" stop-color="#dfe7ff"/></linearGradient><filter id="shadow" x="-35%" y="-35%" width="170%" height="170%"><feDropShadow dx="0" dy="28" stdDeviation="26" flood-color="#020714" flood-opacity="0.52"/></filter></defs><rect width="1024" height="1024" fill="url(#bg)"/><circle cx="190" cy="160" r="190" fill="#25d8ff" opacity=".10"/><circle cx="850" cy="850" r="245" fill="#8d5cff" opacity=".16"/><g filter="url(#shadow)"><rect x="270" y="210" width="484" height="484" rx="125" fill="#0d1839"/><rect x="338" y="335" width="205" height="270" rx="46" fill="url(#cardBlue)" opacity=".9" transform="rotate(-11 440.5 470)"/><rect x="468" y="255" width="205" height="270" rx="46" fill="url(#cardWhite)" transform="rotate(10 570.5 390)"/><circle cx="512" cy="350" r="37" fill="#5b35d5"/><path d="M455 454c13-38 43-60 76-60s63 22 76 60c5 15-6 31-22 31H477c-16 0-27-16-22-31z" fill="#5b35d5"/><path d="M350 553c92 70 232 70 324 0" fill="none" stroke="#25d8ff" stroke-width="34" stroke-linecap="round"/><path d="M379 524l-49 32 49 29" fill="none" stroke="#25d8ff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bg" x1="80" y1="80" x2="944" y2="944" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#061126"/>
+      <stop offset="0.48" stop-color="#111f4c"/>
+      <stop offset="1" stop-color="#5b35d5"/>
+    </linearGradient>
+    
+    <!-- Card Gradients -->
+    <linearGradient id="cardBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#24c8ff"/>
+      <stop offset="100%" stop-color="#4d88ff"/>
+    </linearGradient>
+    <linearGradient id="cardPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a866ff"/>
+      <stop offset="100%" stop-color="#7a3eff"/>
+    </linearGradient>
+    
+    <!-- Icon Gradient -->
+    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e0eaff"/>
+    </linearGradient>
+
+    <!-- Shadow Filter -->
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="25" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    
+    <!-- Inner Shadow for Circle -->
+    <filter id="innerShadow">
+      <feComponentTransfer in="SourceAlpha">
+        <feFuncA type="table" tableValues="1 0" />
+      </feComponentTransfer>
+      <feGaussianBlur stdDeviation="4"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feFlood flood-color="black" flood-opacity="0.4" result="color"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feComposite in2="SourceAlpha" operator="in" />
+      <feMerge>
+        <feMergeNode in="SourceGraphic" />
+        <feMergeNode />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="190" cy="160" r="190" fill="#25d8ff" opacity=".10"/>
+  <circle cx="850" cy="850" r="245" fill="#8d5cff" opacity=".16"/>
+
+  <!-- Logo Container -->
+  <g filter="url(#shadow)">
+    <!-- App Icon Shape -->
+    <rect x="292" y="142" width="440" height="440" rx="100" fill="#0d1839" stroke="#3a4a8c" stroke-width="4"/>
+    
+    <!-- Left Card (Blue) -->
+    <g transform="translate(345, 205) rotate(-6)">
+      <rect width="170" height="245" rx="35" fill="url(#cardBlue)"/>
+      <!-- User Icon -->
+      <circle cx="85" cy="85" r="45" fill="white"/>
+      <path d="M48 170c0-22 17-38 37-38s37 16 37 38v10H48v-10z" fill="white"/>
+      <!-- Lines -->
+      <rect x="38" y="195" width="95" height="12" rx="6" fill="white" opacity="0.4"/>
+      <rect x="38" y="217" width="65" height="12" rx="6" fill="white" opacity="0.4"/>
+    </g>
+
+    <!-- Right Card (Purple) -->
+    <g transform="translate(509, 205) rotate(6)">
+      <rect width="170" height="245" rx="35" fill="url(#cardPurple)"/>
+      <!-- User Icon -->
+      <circle cx="85" cy="85" r="45" fill="white"/>
+      <path d="M48 170c0-22 17-38 37-38s37 16 37 38v10H48v-10z" fill="white"/>
+      <!-- Lines -->
+      <rect x="38" y="195" width="95" height="12" rx="6" fill="white" opacity="0.4"/>
+      <rect x="38" y="217" width="65" height="12" rx="6" fill="white" opacity="0.4"/>
+    </g>
+    
+    <!-- Central Merge Icon -->
+    <g transform="translate(512, 450)">
+      <circle r="65" fill="#0d1839" stroke="#3a4a8c" stroke-width="3"/>
+      <circle r="58" fill="#15224e" filter="url(#innerShadow)"/>
+      
+      <!-- Arrow Up with split base (Merge Symbol) -->
+      <g transform="translate(-25, -30)">
+        <!-- Vertical stem -->
+        <rect x="18" y="18" width="14" height="25" rx="4" fill="white"/>
+        <!-- Arrow head -->
+        <path d="M7 25l18-20 18 20" fill="none" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Split base -->
+        <path d="M12 55c0-8 6-12 13-12s13 4 13 12" fill="none" stroke="white" stroke-width="10" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+</svg>
