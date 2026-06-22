@@ -79,410 +79,410 @@ Construirea unei aplicații mobile Android și iOS care găsește, verifică și
 - ~~<WORK_CODE>0058 - Implementare `AppDivider`: adăugare parametri pentru grosime, indentare și orientare (vertical/orizontal).~~ COMPLETAT (JNI0058)
 - ~~<WORK_CODE>0059 - Creare widget `AppLoadingIndicator`: implementare animație de rotație folosind `brandBlue500` și `brandViolet500`.~~ COMPLETAT (JNI0059)
 - ~~<WORK_CODE>0060 - Creare widget `AppLoadingIndicator`: adăugare suport pentru dimensiuni variabile (mic, mediu, mare).~~ COMPLETAT (JNI0060)
-- <WORK_CODE>0061 - Implementare `AppEmptyState`: creare layout de bază cu iconiță centrală, titlu și descriere.
-- <WORK_CODE>0062 - Implementare `AppEmptyState`: adăugare suport pentru ilustrații SVG din `AppAssets`.
-- <WORK_CODE>0063 - Implementare `AppEmptyState`: integrare buton de acțiune opțional (ex: "Scanează acum").
-- <WORK_CODE>0064 - Creare `AppErrorState`: implementare widget pentru afișarea erorilor cu iconiță de avertizare (`status.error`).
-- <WORK_CODE>0065 - Creare `AppErrorState`: adăugare buton de "Retry" cu callback configurabil.
+- <WORK_CODE>0061 - Implementare `AppEmptyState`: creare layout de bază cu iconiță centrală (48dp), titlu (H2) și descriere (Body2).
+- <WORK_CODE>0062 - Implementare `AppEmptyState`: adăugare suport pentru ilustrații SVG din `AppAssets` folosind `flutter_svg`.
+- <WORK_CODE>0063 - Implementare `AppEmptyState`: integrare buton de acțiune opțional de tip `PrimaryButton` (ex: "Scanează acum").
+- <WORK_CODE>0064 - Creare `AppErrorState`: implementare widget pentru afișarea erorilor cu iconiță `Icons.error_outline` (culoare `AppColors.error`).
+- <WORK_CODE>0065 - Creare `AppErrorState`: adăugare buton de "Retry" cu callback configurabil, stilizat ca `SecondaryButton`.
 - <WORK_CODE>0066 - Implementare `AppBottomBar`: definire structură `BottomNavigationBar` custom cu 4 itemi (Acasă, Duplicate, Backup, Setări).
-- <WORK_CODE>0067 - Implementare `AppBottomBar`: aplicare stiluri vizuale (blur fundal, selecție cu gradient) conform mockup-ului.
-- <WORK_CODE>0068 - Rafinare `PrimaryButton`: adăugare stare de loading (înlocuire text cu `AppLoadingIndicator` mic).
-- <WORK_CODE>0069 - Rafinare `PrimaryButton`: implementare stare de `disabled` (opacitate redusă, ignorare tap).
-- <WORK_CODE>0070 - Rafinare `PrimaryButton`: adăugare suport pentru iconiță în stânga sau dreapta textului.
-- <WORK_CODE>0071 - Creare `IconButton` personalizat: suport pentru diferite forme (circular, pătrat rotunjit) și dimensiuni.
-- <WORK_CODE>0072 - Creare `IconButton` personalizat: implementare efect de "splash" controlat conform temei.
-- <WORK_CODE>0073 - Implementare widget `SectionHeader`: layout pentru titlu de secțiune cu opțiune de "Vezi tot".
-- <WORK_CODE>0074 - Implementare widget `SectionHeader`: stilizare text conform `app_text_styles.dart` (Label/H2).
-- <WORK_CODE>0075 - Creare widget `SettingsTile`: implementare rând pentru setări cu iconiță, titlu, subtitlu și widget de tip "trailing".
-- <WORK_CODE>0076 - Creare widget `SettingsTile`: adăugare suport pentru diferite tipuri de trailing (Switch, Arrow, Text).
-- <WORK_CODE>0077 - Adăugare `AppSwitch`: personalizare `Switch` nativ pentru a folosi culorile brandului în ambele teme.
-- <WORK_CODE>0078 - Implementare widget `AppTextField`: creare input text cu border rotunjit, suport pentru iconiță de căutare și buton de ștergere.
-- <WORK_CODE>0079 - Implementare widget `AppTextField`: adăugare validări vizuale (error border, hint style).
-- <WORK_CODE>0080 - Creare `BadgeCount`: widget circular mic pentru afișarea numărului de duplicate găsite pe iconițele din menu.
-- <WORK_CODE>0081 - Implementare `AnimatedCard`: adăugare animație de tip "scale" sau "slide" la apariția în listă a cardului de contact.
-- <WORK_CODE>0082 - Creare widget `ProgressRing`: implementare cerc de progres pentru Dashboard folosind `CustomPainter`.
-- <WORK_CODE>0083 - Creare widget `ProgressRing`: adăugare animație de umplere progresivă și text central (procent).
-- <WORK_CODE>0084 - Adăugare suport pentru gradienți în `AppCard`: implementare proprietate `gradientBackground`.
-- <WORK_CODE>0085 - Implementare sistem de umbre (`AppBoxShadows`): definire set de umbre (soft, medium, hard) ca extensie la `ThemeData`.
-- <WORK_CODE>0086 - Creare widget `InfoBox`: layout pentru mesaje informative cu fundal `light.surfaceMuted` și iconiță de info.
-- <WORK_CODE>0087 - Rafinare Splash Screen: implementare animație complexă de apariție logo și titlu (secvențial).
-- <WORK_CODE>0088 - Implementare `AppDialog`: creare widget de bază pentru dialoguri cu fundal blurat și margini rotunjite (`radius.lg`).
-- <WORK_CODE>0089 - Creare `ConfirmationDialog`: implementare dialog specific cu două butoane și mesaj de confirmare.
-- <WORK_CODE>0090 - Implementare `AppBottomSheet`: creare widget de bază pentru ecrane glisante de jos în sus.
-- <WORK_CODE>0091 - Creare `SelectionListTile`: implementare rând cu checkbox/radio pentru selectarea câmpurilor în Merge Detail.
-- <WORK_CODE>0092 - Adăugare suport pentru "Haptic Feedback": integrare `HapticFeedback.lightImpact()` la interacțiunea cu butoanele.
-- <WORK_CODE>0093 - Creare widget `MergeFieldRow`: layout pentru compararea a două valori (Stânga vs Dreapta) cu evidențierea diferențelor.
-- <WORK_CODE>0094 - Implementare `SearchEmptyState`: variantă de empty state specifică pentru rezultate de căutare vide.
-- <WORK_CODE>0095 - Creare widget `SummaryCard`: card compact pentru statistici (ex: "340 MB eliberați").
-- <WORK_CODE>0096 - Implementare `AppSkeletonLoader`: creare efect de "shimmer" pentru dashboard (placeholder cerc și linii).
-- <WORK_CODE>0097 - Creare `SkeletonLoader` pentru lista de contacte: rânduri placeholder cu avatar și text simulat.
-- <WORK_CODE>0098 - Adăugare `AppBlur`: widget utilitar pentru aplicarea efectului de `BackdropFilter` (Glassmorphism).
-- <WORK_CODE>0099 - Implementare widget `LanguageSelector`: dialog cu steaguri și nume limbi pentru schimbarea localizării.
-- <WORK_CODE>0100 - Creare `ThemeSelector`: widget tip toggle sau listă pentru alegerea Light/Dark/System.
-- <WORK_CODE>0101 - Audit UI: verificare manuală a tuturor widget-urilor create față de `theme-guide.md` și corectare discrepanțe.
+- <WORK_CODE>0067 - Implementare `AppBottomBar`: aplicare stiluri vizuale (blur fundal 10px, selecție cu gradient `brandGradient`, înălțime 64dp).
+- <WORK_CODE>0068 - Rafinare `PrimaryButton`: adăugare stare de loading, înlocuind textul cu `AppLoadingIndicator.small()` alb.
+- <WORK_CODE>0069 - Rafinare `PrimaryButton`: implementare stare de `disabled` (opacitate 0.5, `pointerEvents: none`).
+- <WORK_CODE>0070 - Rafinare `PrimaryButton`: adăugare suport pentru `icon` (Widget opțional) poziționat la 8dp de text.
+- <WORK_CODE>0071 - Creare `IconButton` personalizat: suport pentru forme `circle` și `roundedRect` (radius 12dp), dimensiune default 40dp.
+- <WORK_CODE>0072 - Creare `IconButton` personalizat: implementare efect de "splash" folosind `InkWell` cu culoarea `AppColors.blue500.withOpacity(0.1)`.
+- <WORK_CODE>0073 - Implementare widget `SectionHeader`: layout `Row` cu titlu (H3) și buton text "Vezi tot" (Label style, `AppColors.blue500`).
+- <WORK_CODE>0074 - Implementare widget `SectionHeader`: adăugare padding orizontal standard de 16dp și vertical de 8dp.
+- <WORK_CODE>0075 - Creare widget `SettingsTile`: implementare rând (înălțime minimă 56dp) cu iconiță, titlu, subtitlu opțional.
+- <WORK_CODE>0076 - Creare widget `SettingsTile`: adăugare suport pentru `trailing` widget (Switch, Chevron, sau Text informativ).
+- <WORK_CODE>0077 - Adăugare `AppSwitch`: personalizare `Switch.adaptive` pentru a folosi `AppColors.blue500` (active) și `surfaceMuted` (inactive).
+- <WORK_CODE>0078 - Implementare widget `AppTextField`: creare input cu `borderRadius` 12dp, `contentPadding` 16dp, iconiță de căutare prefix.
+- <WORK_CODE>0079 - Implementare widget `AppTextField`: adăugare logică pentru buton "Clear" (suffix icon) care apare doar când există text.
+- <WORK_CODE>0080 - Creare `BadgeCount`: widget circular (20dp) cu fundal `AppColors.error` și text alb (Caption, bold).
+- <WORK_CODE>0081 - Implementare `AnimatedCard`: integrare `AnimatedOpacity` și `SlideTransition` pentru intrare lină în listă (300ms).
+- <WORK_CODE>0082 - Creare widget `ProgressRing`: implementare cerc de progres (80dp, stroke 8dp) folosind `CustomPainter`.
+- <WORK_CODE>0083 - Creare widget `ProgressRing`: adăugare animație `Tween` pentru umplere și text central cu procent (H2 style).
+- <WORK_CODE>0084 - Adăugare suport pentru gradienți în `AppCard`: proprietate `gradient` care suprascrie `color` (folosind `BoxDecoration`).
+- <WORK_CODE>0085 - Implementare sistem de umbre: definire `AppBoxShadows.soft` (blur 8, spread 0, opacity 0.05).
+- <WORK_CODE>0086 - Creare widget `InfoBox`: layout tip "callout" cu fundal albastru pal, iconiță de info și padding 12dp.
+- <WORK_CODE>0087 - Rafinare Splash Screen: animație secvențială (Logo fade-in 500ms -> Title slide-up 500ms).
+- <WORK_CODE>0088 - Implementare `AppDialog`: fundal `Colors.black54`, container cu blur `BackdropFilter` și padding 24dp.
+- <WORK_CODE>0089 - Creare `ConfirmationDialog`: dialog predefinit cu titlu, mesaj, buton "Anulează" (secundar) și "Confirmă" (danger style).
+- <WORK_CODE>0090 - Implementare `AppBottomSheet`: folosire `showModalBottomSheet` cu margini rotunjite sus (20dp) și handle bar central.
+- <WORK_CODE>0091 - Creare `SelectionListTile`: rând cu `Checkbox` personalizat și text care ocupă tot spațiul rămas.
+- <WORK_CODE>0092 - Adăugare suport pentru "Haptic Feedback": apelare `HapticFeedback.mediumImpact()` în `onPressed` al butoanelor.
+- <WORK_CODE>0093 - Creare widget `MergeFieldRow`: afișare două valori comparate cu highlight roșu pe diferențe (folosind `TextSpan`).
+- <WORK_CODE>0094 - Implementare `SearchEmptyState`: specializare a `AppEmptyState` cu iconiță `Icons.search_off` și text specific.
+- <WORK_CODE>0095 - Creare widget `SummaryCard`: card mic (100x100) cu iconiță top-left și cifră mare centrală (H1).
+- <WORK_CODE>0096 - Implementare `AppSkeletonLoader`: efect de pulse (opacitate 0.3 -> 0.7) pentru placeholder-e dreptunghiulare.
+- <WORK_CODE>0097 - Creare `SkeletonLoader` pentru Listă: rând cu cerc placeholder (avatar) și două linii gri (nume/tel).
+- <WORK_CODE>0098 - Adăugare `AppBlur`: widget utilitar ce aplică `ImageFiltered` sau `BackdropFilter` cu `sigmaX: 5, sigmaY: 5`.
+- <WORK_CODE>0099 - Implementare widget `LanguageSelector`: listă tip `RadioListTile` într-un dialog pentru RO și EN.
+- <WORK_CODE>0100 - Creare `ThemeSelector`: toggle switch între Soare/Lună sau listă cu opțiunile: Light, Dark, System.
+- <WORK_CODE>0101 - Audit UI: verificare aliniere la grid-ul de 8dp și consistența culorilor folosind un Debug Tooling intern.
 
 ### Localization & Asset Management (0102 - 0150)
-- <WORK_CODE>0102 - Configurare `Intl` pentru suport plural (ex: "1 contact", "5 contacte").
-- <WORK_CODE>0103 - Adăugare traduceri RO pentru ecranul Onboarding.
-- <WORK_CODE>0104 - Adăugare traduceri EN pentru ecranul Onboarding.
-- <WORK_CODE>0105 - Adăugare traduceri RO pentru Dashboard.
-- <WORK_CODE>0106 - Adăugare traduceri EN pentru Dashboard.
-- <WORK_CODE>0107 - Adăugare traduceri RO pentru Listă Duplicate.
-- <WORK_CODE>0108 - Adăugare traduceri EN pentru Listă Duplicate.
-- <WORK_CODE>0109 - Adăugare traduceri RO pentru Detalii Merge.
-- <WORK_CODE>0110 - Adăugare traduceri EN pentru Detalii Merge.
-- <WORK_CODE>0111 - Adăugare traduceri RO pentru Backup & Restaurare.
-- <WORK_CODE>0112 - Adăugare traduceri EN pentru Backup & Restaurare.
-- <WORK_CODE>0113 - Adăugare traduceri RO pentru Setări.
-- <WORK_CODE>0114 - Adăugare traduceri EN pentru Setări.
-- <WORK_CODE>0115 - Adăugare mesaje de eroare localizate (RO/EN).
-- <WORK_CODE>0116 - Implementare serviciu `AppLanguageService` pentru schimbare dinamică.
-- <WORK_CODE>0117 - Adăugare iconițe vectoriale (SVG) pentru acțiuni (merge, scan, delete).
-- <WORK_CODE>0118 - Adăugare iconițe vectoriale (SVG) pentru categorii contacte (work, home).
-- <WORK_CODE>0119 - Optimizare asset-uri SVG pentru dimensiune minimă.
-- <WORK_CODE>0120 - Implementare script de verificare prezență traduceri în ambele limbi.
-- <WORK_CODE>0121 - Adăugare sunete discrete pentru feedback acțiuni (opțional/configurabil).
-- <WORK_CODE>0122 - Configurare fonturi de sistem (Inter/Roboto/San Francisco).
-- <WORK_CODE>0123 - Implementare `AppAssets` constant class pentru acces tipizat.
-- <WORK_CODE>0124 - Adăugare imagini placeholder pentru contacte fără foto.
-- <WORK_CODE>0125 - Creare asset-uri pentru empty states (ilustrații SVG).
-- <WORK_CODE>0126 - Adăugare ilustrații pentru onboarding (vizualizare, siguranță).
-- <WORK_CODE>0127 - Configurare `l10n.yaml` pentru generare cod automată.
-- <WORK_CODE>0128 - Implementare unit test pentru `AppLanguageService`.
-- <WORK_CODE>0129 - Verificare contrast culori pentru localizare (texte lungi).
-- <WORK_CODE>0130 - Adăugare suport pentru diacritice în căutare (normalizare string).
-- <WORK_CODE>0131 - Audit localizare: eliminare hardcoded strings rămase.
-- <WORK_CODE>0132-0150 - Rafinament infrastructură și pregătire pentru Faza 1.
+- <WORK_CODE>0102 - Configurare `Intl` pentru suport plural: reguli gramaticale RO (1, puține, multe) vs EN.
+- <WORK_CODE>0103 - Adăugare traduceri RO: fișier `app_ro.arb` cu texte pentru Onboarding (titluri, descrieri).
+- <WORK_CODE>0104 - Adăugare traduceri EN: fișier `app_en.arb` cu texte pentru Onboarding.
+- <WORK_CODE>0105 - Adăugare traduceri RO: texte Dashboard (scor, butoane acțiune, statistici).
+- <WORK_CODE>0106 - Adăugare traduceri EN: texte Dashboard.
+- <WORK_CODE>0107 - Adăugare traduceri RO: Listă Duplicate (header, filter chips, sort options).
+- <WORK_CODE>0108 - Adăugare traduceri EN: Listă Duplicate.
+- <WORK_CODE>0109 - Adăugare traduceri RO: Detalii Merge (nume câmpuri, avertismente, success message).
+- <WORK_CODE>0110 - Adăugare traduceri EN: Detalii Merge.
+- <WORK_CODE>0111 - Adăugare traduceri RO: Backup & Restaurare (vCard export, import history).
+- <WORK_CODE>0112 - Adăugare traduceri EN: Backup & Restaurare.
+- <WORK_CODE>0113 - Adăugare traduceri RO: Setări (temă, limbă, despre, reset).
+- <WORK_CODE>0114 - Adăugare traduceri EN: Setări.
+- <WORK_CODE>0115 - Adăugare mesaje eroare RO/EN: lipsă permisiuni, eroare citire, disc plin, merge failed.
+- <WORK_CODE>0116 - Implementare `AppLanguageService`: utilizare `shared_preferences` pentru salvarea preferinței de limbă.
+- <WORK_CODE>0117 - Adăugare asset-uri SVG: `merge.svg`, `scan.svg`, `delete.svg` în `assets/icons/actions/`.
+- <WORK_CODE>0118 - Adăugare asset-uri SVG: `work.svg`, `home.svg`, `phone.svg`, `email.svg` în `assets/icons/contact/`.
+- <WORK_CODE>0119 - Optimizare SVG: rulare `svgo` pe toate iconițele pentru a elimina metadata inutilă.
+- <WORK_CODE>0120 - Script CI (Dart): verificare automată dacă toate cheile din `app_ro.arb` există și în `app_en.arb`.
+- <WORK_CODE>0121 - Asset-uri audio: `success.mp3`, `click.wav` (low latency, sub 100ms).
+- <WORK_CODE>0122 - Configurare Fonts: adăugare `Inter-Regular.ttf`, `Inter-Bold.ttf` în `pubspec.yaml`.
+- <WORK_CODE>0123 - Implementare `AppAssets`: clasă cu rute statice (`static const String logo = 'assets/brand/logo.svg'`).
+- <WORK_CODE>0124 - Placeholder contact: generare SVG programatic sau asset cu profil generic (gri neutru).
+- <WORK_CODE>0125 - Ilustrații Empty State: `no_duplicates.svg`, `all_clean.svg` (stil minimalist, culori brand).
+- <WORK_CODE>0126 - Ilustrații Onboarding: `local_privacy.svg`, `secure_backup.svg` (dimensiune optimă 200x200).
+- <WORK_CODE>0127 - Configurare `l10n.yaml`: `output-dir: lib/core/l10n`, `template-arb-file: app_en.arb`.
+- <WORK_CODE>0128 - Unit Test: `AppLanguageService` - verificare schimbare locale și persistență.
+- <WORK_CODE>0129 - Audit UI Localizare: verificare overflow text pentru limba RO (care e de obicei mai lungă cu 20%).
+- <WORK_CODE>0130 - Normalizare Căutare: funcție de eliminare diacritice (ș->s, ț->t) folosind tabele de mapping.
+- <WORK_CODE>0131 - Audit Cod: scanare recursivă pentru string-uri între ghilimele neînregistrate în ARB.
+- <WORK_CODE>0132-0150 - Pregătire Faza 1: Verificare compatibilitate asset-uri pe ecrane cu densitate mare (Retina/High-res).
 
 ---
 
 ## FAZA 1: Onboarding, Permisiuni și Securitate (Commit-uri 0151 - 0300)
 
 ### Onboarding Flow (0151 - 0200)
-- <WORK_CODE>0151 - Creare `OnboardingModel` entity.
-- <WORK_CODE>0152 - Implementare `OnboardingController` (Riverpod/Bloc).
-- <WORK_CODE>0153 - Creare `OnboardingScreen` (Base PageView).
-- <WORK_CODE>0154 - Implementare `OnboardingStep1`: Explicație Scanare Locală.
-- <WORK_CODE>0155 - Implementare `OnboardingStep2`: Explicație Backup & Siguranță.
-- <WORK_CODE>0156 - Implementare `OnboardingStep3`: Cerere Permisiuni (Pre-prompt).
-- <WORK_CODE>0157 - Adăugare animație de tranziție între pașii de onboarding.
-- <WORK_CODE>0158 - Implementare buton "Skip" (unde este permis/logic).
-- <WORK_CODE>0159 - Creare `OnboardingProgressDots` widget.
-- <WORK_CODE>0160 - Implementare persistență status onboarding (SharedPrefs).
-- <WORK_CODE>0161 - Creare `PrivacyPolicyScreen`.
-- <WORK_CODE>0162 - Implementare widget `PrivacyAcceptance` (checkbox).
-- <WORK_CODE>0163 - Adăugare link-uri externe către politica de confidențialitate.
-- <WORK_CODE>0164 - Implementare logică de redirecționare automată (Onboarding vs Dashboard).
-- <WORK_CODE>0165 - Widget test pentru `OnboardingScreen`.
-- <WORK_CODE>0166 - Unit test pentru `OnboardingController`.
-- <WORK_CODE>0167 - Adăugare suport pentru reluare onboarding (din Setări).
-- <WORK_CODE>0168 - Rafinare design pagini onboarding conform theme-guide.
-- <WORK_CODE>0169 - Adăugare feedback vizual la swipe în onboarding.
-- <WORK_CODE>0170 - Integrare Analytics (anonim, doar pași onboarding) - dacă e permis.
-- <WORK_CODE>0171-0200 - Buffer pentru rafinament flow utilizator.
+- <WORK_CODE>0151 - Creare `OnboardingModel`: definire titlu, descriere, assetPath și backgroundGradient (din `AppColors`).
+- <WORK_CODE>0152 - Implementare `OnboardingController`: folosire `StateNotifier` sau `Cubit` pentru gestionarea indexului curent (0-2).
+- <WORK_CODE>0153 - Creare `OnboardingScreen`: structură cu `Stack` (fundal gradient), `PageView` central și butoane jos.
+- <WORK_CODE>0154 - Implementare `OnboardingStep1`: text "Privacy First", ilustrație `local_privacy.svg`, animație `FadeIn`.
+- <WORK_CODE>0155 - Implementare `OnboardingStep2`: text "Safe Backup", ilustrație `secure_backup.svg`, listă cu bullet points.
+- <WORK_CODE>0156 - Implementare `OnboardingStep3`: text "Get Started", buton mare `PrimaryButton` care declanșează fluxul de permisiuni.
+- <WORK_CODE>0157 - Tranziție Onboarding: folosire `CurvedAnimation` (Curves.easeInOut) pentru glisarea între pagini.
+- <WORK_CODE>0158 - Buton "Skip": poziționare top-right (24dp padding), vizibil doar pe primele două pagini.
+- <WORK_CODE>0159 - Creare `OnboardingProgressDots`: 3 cercuri mici, cel activ fiind extins (16dp lățime) cu culoarea albă.
+- <WORK_CODE>0160 - Persistență Onboarding: salvare `has_seen_onboarding: true` în `SharedPreferences` la finalizare.
+- <WORK_CODE>0161 - Creare `PrivacyPolicyScreen`: `Scaffold` cu `AppBar` și un `SingleChildScrollView` pentru textul legal.
+- <WORK_CODE>0162 - Widget `PrivacyAcceptance`: `CheckboxListTile` cu link text ("Accept termenii și condițiile") folosind `RichText`.
+- <WORK_CODE>0163 - Link-uri externe: implementare `url_launcher` pentru a deschide link-ul către site-ul oficial de privacy.
+- <WORK_CODE>0164 - Logică Redirecționare: în `main.dart`, verificare flag `has_seen_onboarding` pentru a decide ruta inițială.
+- <WORK_CODE>0165 - Widget Test: `OnboardingScreen` - verificare dacă swipe-ul schimbă corect textele.
+- <WORK_CODE>0166 - Unit Test: `OnboardingController` - verificare dacă metoda `nextPage()` nu depășește indexul maxim.
+- <WORK_CODE>0167 - Re-onboarding: adăugare buton în `SettingsScreen` care resetează flag-ul și trimite utilizatorul la onboarding.
+- <WORK_CODE>0168 - Rafinare Design: adăugare efect de "Parallax" ușor pentru ilustrațiile din onboarding în timpul scroll-ului.
+- <WORK_CODE>0169 - Feedback Vizual: schimbarea subtilă a culorii fundalului (gradient) în funcție de pagina curentă.
+- <WORK_CODE>0170 - Analytics (Anonim): logare eveniment `onboarding_completed` fără a colecta ID-ul dispozitivului.
+- <WORK_CODE>0171-0200 - Buffer: tratare ecrane cu aspect ratio mic (se asigură că butoanele nu ies din ecran).
 
 ### Permissions Management (0201 - 0250)
-- <WORK_CODE>0201 - Definire `PermissionStatus` enum personalizat.
-- <WORK_CODE>0202 - Creare interfață `IPermissionService`.
-- <WORK_CODE>0203 - Implementare `ContactsPermissionService` (base).
-- <WORK_CODE>0204 - Implementare logică Android: cerere permisiune citire.
-- <WORK_CODE>0205 - Implementare logică iOS: cerere permisiune contacte.
-- <WORK_CODE>0206 - Tratare caz "Permanently Denied": dialog către setări sistem.
-- <WORK_CODE>0207 - Implementare logică Android: cerere permisiune scriere (când e nevoie).
-- <WORK_CODE>0208 - Implementare verificare status permisiuni la pornirea aplicației.
-- <WORK_CODE>0209 - Creare `PermissionExplanationDialog` (pre-prompt UI).
-- <WORK_CODE>0210 - Implementare `PermissionGuard` widget (blocare acces UI).
-- <WORK_CODE>0211 - Adăugare suport pentru `READ_EXTERNAL_STORAGE` (dacă e nevoie pt backup vechi).
-- <WORK_CODE>0212 - Tratare erori specifice de sistem la cererea permisiunii.
-- <WORK_CODE>0213 - Implementare serviciu de deschidere setări aplicație (App Settings).
-- <WORK_CODE>0214 - Unit test pentru `PermissionService` (mock status).
-- <WORK_CODE>0215 - Integrare status permisiuni în Dashboard Controller.
-- <WORK_CODE>0216 - Adăugare logging (fără PII) pentru schimbările de permisiuni.
-- <WORK_CODE>0217-0250 - Buffer pentru cazuri particulare (ex: tablete, moduri restricționate).
+- <WORK_CODE>0201 - Enum `AppPermissionStatus`: definire stări (initial, granted, denied, permanentlyDenied).
+- <WORK_CODE>0202 - Interfață `IPermissionService`: metode abstracte `requestContactsPermission()` și `checkStatus()`.
+- <WORK_CODE>0203 - Implementare `ContactsPermissionService`: utilizare pachet `permission_handler`.
+- <WORK_CODE>0204 - Android Logic: gestionare `READ_CONTACTS` și `WRITE_CONTACTS` în `AndroidManifest.xml`.
+- <WORK_CODE>0205 - iOS Logic: adăugare `NSContactsUsageDescription` în `Info.plist` cu text explicativ clar.
+- <WORK_CODE>0206 - Permanently Denied: implementare dialog care explică de ce e nevoie de permisiune și buton spre "Open App Settings".
+- <WORK_CODE>0207 - Permisiune Scriere: cerere separată doar în momentul în care utilizatorul apasă pe "Merge".
+- <WORK_CODE>0208 - Verificare Startup: serviciu care la fiecare boot verifică dacă permisiunile sunt încă valide.
+- <WORK_CODE>0209 - `PermissionExplanationDialog`: UI custom cu iconiță de contacte și listă de beneficii (ex: "Găsim duplicate").
+- <WORK_CODE>0210 - Widget `PermissionGuard`: wrapper care afișează un ecran de "Access Required" dacă permisiunea lipsește.
+- <WORK_CODE>0211 - External Storage: adăugare permisiune pt Android < 10 pentru salvarea fișierelor vCard.
+- <WORK_CODE>0212 - Error Handling: tratare cazuri în care sistemul refuză să mai afișeze prompt-ul de permisiune.
+- <WORK_CODE>0213 - Settings Opener: funcție utilitară care apelează API-ul nativ pentru deschiderea paginii de setări a aplicației.
+- <WORK_CODE>0214 - Unit Test: `PermissionService` folosind un `MockPermissionHandler` pentru a simula diverse răspunsuri ale OS-ului.
+- <WORK_CODE>0215 - Dashboard Integration: afișare un "Warning Banner" în Dashboard dacă permisiunile au fost revocate manual din setări.
+- <WORK_CODE>0216 - Privacy Log: salvare în logger-ul intern a momentului acordării permisiunii (fără date GPS sau user ID).
+- <WORK_CODE>0217-0250 - Buffer: suport pentru "Limited Access" pe iOS 14+ (permisiune doar pe anumite contacte).
 
 ### Data Privacy & Security (0251 - 0300)
-- <WORK_CODE>0251 - Creare `SecurityService` (verificare integritate aplicație).
-- <WORK_CODE>0252 - Implementare logică de detectare Root/Jailbreak (opțional - avertisment).
-- <WORK_CODE>0253 - Implementare `DataEncryptionService` pentru cache local.
-- <WORK_CODE>0254 - Configurare `SecureStorage` pentru token-uri/flag-uri critice.
-- <WORK_CODE>0255 - Implementare serviciu de curățare date la dezinstalare (Android auto-backup exclusion).
-- <WORK_CODE>0256 - Audit cod: verificare utilizare `print` (înlocuire cu logger).
-- <WORK_CODE>0257 - Implementare `Obfuscation` în build-ul de producție.
-- <WORK_CODE>0258 - Configurare reguli de securitate pentru fișierele de backup local.
-- <WORK_CODE>0259 - Creare `PrivacyManager` pentru controlul datelor stocate.
-- <WORK_CODE>0260 - Implementare buton "Șterge toate datele aplicației" (Local Wipe).
-- <WORK_CODE>0261 - Verificare conformitate GDPR (dreptul de a fi uitat - date locale).
-- <WORK_CODE>0262 - Unit test pentru `DataEncryptionService`.
-- <WORK_CODE>0263 - Implementare logică de blocare screenshots în ecrane sensibile (opțional).
-- <WORK_CODE>0264 - Adăugare avertisment la export backup necriptat.
-- <WORK_CODE>0265 - Audit acces fișiere: limitare la `applicationDocumentsDirectory`.
-- <WORK_CODE>0266-0300 - Rafinament securitate și audit final Faza 1.
+- <WORK_CODE>0251 - `SecurityService`: metodă de verificare a semnăturii pachetului (Android) pentru a preveni repachetarea.
+- <WORK_CODE>0252 - Detectare Root/Jailbreak: folosire `flutter_jailbreak_detection` și afișare mesaj de avertizare la startup.
+- <WORK_CODE>0253 - `DataEncryptionService`: implementare criptare `AES-256` folosind `flutter_rust_bridge` sau `encrypt` package.
+- <WORK_CODE>0254 - `SecureStorage`: folosire `flutter_secure_storage` pentru a salva cheia de criptare a bazei de date.
+- <WORK_CODE>0255 - Auto-backup Exclusion: configurare `allowBackup="false"` în `AndroidManifest` pentru datele sensibile.
+- <WORK_CODE>0256 - Audit Cod: script pentru identificarea și eliminarea oricărui `print()` sau `debugPrint()` care conține variabile dinamice.
+- <WORK_CODE>0257 - Obfuscation Build: configurare `shrinkResources true` și `minifyEnabled true` în `build.gradle` (Android).
+- <WORK_CODE>0258 - Security Rules Backup: setare permisiuni fișier vCard exportat pentru a fi citit doar de aplicația de contacte a sistemului.
+- <WORK_CODE>0259 - `PrivacyManager`: serviciu care permite utilizatorului să vadă ce metadate sunt salvate local (ex: timestamp scanare).
+- <WORK_CODE>0260 - Local Wipe: funcție care șterge folderul `applicationDocumentsDirectory` și golește `SecureStorage`.
+- <WORK_CODE>0261 - GDPR Compliance: adăugare ecran "Drepturile tale" care explică stocarea 100% locală.
+- <WORK_CODE>0262 - Unit Test: `DataEncryptionService` - testare criptare/decriptare cu cheie greșită.
+- <WORK_CODE>0263 - Screenshot Block: folosire `flutter_windowmanager` pentru a seta `FLAG_SECURE` pe Android în ecranele de preview merge.
+- <WORK_CODE>0264 - Unencrypted Warning: dialog de confirmare înainte de a partaja (share) un backup vCard prin email/mesaje.
+- <WORK_CODE>0265 - Access Audit: limitare strictă a permisiunilor de fișiere la nivel de OS folosind `File.setLastModified`.
+- <WORK_CODE>0266-0300 - Audit Securitate: verificare manuală a dependențelor din `pubspec.lock` pentru vulnerabilități cunoscute.
 
 ---
 
 ## FAZA 2: Modele de Date, Servicii Native și Baza de Date (Commit-uri 0301 - 0450)
 
 ### Data Models & Entities (0301 - 0350)
-- <WORK_CODE>0301 - Creare `ContactEntity` (clasa principală).
-- <WORK_CODE>0302 - Definire `PhoneEntity` (label, value, type).
-- <WORK_CODE>0303 - Definire `EmailEntity` (label, value, type).
-- <WORK_CODE>0304 - Definire `AddressEntity` (full address, street, city, etc.).
-- <WORK_CODE>0305 - Adăugare suport pentru `PhotoEntity` (URI local/Bytes).
-- <WORK_CODE>0306 - Creare `GroupEntity` (pentru contacte grupate/duplicate).
-- <WORK_CODE>0307 - Implementare `ContactMapper`: mapare de la JSON la Entity.
-- <WORK_CODE>0308 - Implementare `ContactMapper`: mapare de la Entity la JSON.
-- <WORK_CODE>0309 - Adăugare câmp `isReadOnly` în `ContactEntity`.
-- <WORK_CODE>0310 - Adăugare câmp `accountType` (Google, iCloud, SIM, Local).
-- <WORK_CODE>0311 - Definire `DuplicateReason` enum (Phone, Email, Name, etc.).
-- <WORK_CODE>0312 - Creare `MatchResult` model (score, reasons).
-- <WORK_CODE>0313 - Implementare `copyWith` pentru toate entitățile (immutability).
-- <WORK_CODE>0314 - Adăugare validări de bază în constructorii entităților.
-- <WORK_CODE>0315 - Creare `ContactComparison` utilitar pentru detecție schimbări.
-- <WORK_CODE>0316 - Unit test pentru `ContactMapper`.
-- <WORK_CODE>0317 - Unit test pentru validări în `ContactEntity`.
-- <WORK_CODE>0318-0350 - Buffer pentru extensii modele (ex: Job Title, Birthday).
+- <WORK_CODE>0301 - `ContactEntity`: definire id (UUID), displayName, initials, și lists de phones/emails.
+- <WORK_CODE>0302 - `PhoneEntity`: value (string normalizat), label (Home, Work, Mobile), și originalValue.
+- <WORK_CODE>0303 - `EmailEntity`: value, label, și isValid flag (regex validation).
+- <WORK_CODE>0304 - `AddressEntity`: street, city, state, postalCode, country (suport multi-linie).
+- <WORK_CODE>0305 - `PhotoEntity`: uint8list bytes (pentru cache rapid) și localPath către folderul de cache al aplicației.
+- <WORK_CODE>0306 - `GroupEntity`: id unic, listă de `ContactEntity` (membri), și `score` de similaritate mediu.
+- <WORK_CODE>0307 - `ContactMapper`: implementare `fromNativeJson` (conversie din map-ul primit prin MethodChannel).
+- <WORK_CODE>0308 - `ContactMapper`: implementare `toNativeJson` (formatul cerut de API-ul de scriere Android/iOS).
+- <WORK_CODE>0309 - `isReadOnly`: adăugare flag calculat (ex: contacte din WhatsApp sau LinkedIn care nu pot fi șterse pe Android).
+- <WORK_CODE>0310 - `accountType`: detectare sursă (Google: 'com.google', iCloud: 'com.apple.contacts').
+- <WORK_CODE>0311 - `DuplicateReason`: enum cu valori (exactPhone, fuzzyName, sameEmail, sharedAddress).
+- <WORK_CODE>0312 - `MatchResult`: model care conține `confidenceScore` (0-100) și lista de motive `reasons`.
+- <WORK_CODE>0313 - `copyWith`: generare automată a metodelor `copyWith` pentru toate clasele folosind `freezed` sau manual.
+- <WORK_CODE>0314 - Validări Entity: asigurat că un contact nu poate fi creat fără `id` sau fără cel puțin un `displayName`.
+- <WORK_CODE>0315 - `ContactComparison`: utilitar care returnează un `Map<String, dynamic>` cu diferențele între două versiuni de contact.
+- <WORK_CODE>0316 - Unit Test: `ContactMapper` - testare cu date malformate (ex: telefoane care sunt null).
+- <WORK_CODE>0317 - Unit Test: `ContactEntity` - verificare egalitate (`operator ==`) între două obiecte cu aceleași date.
+- <WORK_CODE>0318-0350 - Buffer: suport pentru câmpuri sociale (Twitter, Facebook ID) și note (notes).
 
 ### Native Services (Android & iOS) (0351 - 0400)
-- <WORK_CODE>0351 - Definire `MethodChannel` pentru comunicare nativă.
-- <WORK_CODE>0352 - Creare interfață `INativeContactsService`.
-- <WORK_CODE>0353 - Implementare `NativeContactsService` (Flutter side).
-- <WORK_CODE>0354 - Android: Creare `ContactsProvider` helper (Kotlin).
-- <WORK_CODE>0355 - Android: Implementare metodă `fetchContacts` (batch reading).
-- <WORK_CODE>0356 - Android: Implementare metodă `fetchContactPhoto` (on demand).
-- <WORK_CODE>0357 - Android: Implementare detecție contacte Read-Only.
-- <WORK_CODE>0358 - iOS: Creare `ContactsHelper` (Swift).
-- <WORK_CODE>0359 - iOS: Implementare metodă `fetchContacts` (CNContactStore).
-- <WORK_CODE>0360 - iOS: Implementare metodă `fetchContactPhoto`.
-- <WORK_CODE>0361 - iOS: Mapare `CNContact` la formatul intern JSON.
-- <WORK_CODE>0362 - Implementare logică de "Pagination" la citirea contactelor.
-- <WORK_CODE>0363 - Tratare Timeout la citirea unor agende foarte mari.
-- <WORK_CODE>0364 - Android: Implementare interogare după `MIMETYPE`.
-- <WORK_CODE>0365 - iOS: Implementare filtrare după `containerId`.
-- <WORK_CODE>0366 - Adăugare suport pentru citire contacte din grupuri specifice.
-- <WORK_CODE>0367 - Implementare logică de "Diff" nativă (opțional).
-- <WORK_CODE>0368 - Unit test pentru `NativeContactsService` (Mock MethodChannel).
-- <WORK_CODE>0369 - Verificare performanță: citire 5000 contacte în Simulator.
-- <WORK_CODE>0370 - Verificare performanță: citire 5000 contacte pe Real Device.
-- <WORK_CODE>0371-0400 - Rafinament cod nativ și tratare corner-cases.
+- <WORK_CODE>0351 - MethodChannel: definire channel name `ro.contacteduplicate.app/contacts` și metode: `fetch`, `update`, `delete`.
+- <WORK_CODE>0352 - `INativeContactsService`: definire contract asincron care returnează `Future<List<Map>>`.
+- <WORK_CODE>0353 - `NativeContactsService`: implementare wrapper Flutter care apelează `invokeMethod` și tratează `PlatformException`.
+- <WORK_CODE>0354 - Android Kotlin: creare `ContactsRepository` care folosește `ContentResolver`.
+- <WORK_CODE>0355 - Android Batch: citire contacte în loturi de 500 folosind `ContactsContract.Data.CONTENT_URI`.
+- <WORK_CODE>0356 - Android Photo: implementare `openContactPhotoInputStream` pentru a obține thumbnail-ul eficient.
+- <WORK_CODE>0357 - Android Read-Only: detectare coloană `IS_READ_ONLY` pentru a marca contactele din surse externe imuabile.
+- <WORK_CODE>0358 - iOS Swift: utilizare `CNContactStore` cu `CNContactFetchRequest`.
+- <WORK_CODE>0359 - iOS Fetch: selectare chei minime (givenName, familyName, phoneNumbers, emailAddresses) pentru viteză.
+- <WORK_CODE>0360 - iOS Photo: obținere `imageData` sau `thumbnailImageData` dacă există.
+- <WORK_CODE>0361 - iOS Mapping: conversie obiecte `CNContact` într-un `Dictionary` compatibil cu formatul JSON intern.
+- <WORK_CODE>0362 - Pagination Logic: implementare `offset` și `limit` în MethodChannel pentru a nu bloca UI thread-ul nativ.
+- <WORK_CODE>0363 - Native Timeout: implementare mecanism de cancelation în Kotlin/Swift dacă procesul durează peste 30 secunde.
+- <WORK_CODE>0364 - Android MimeType: interogare specifică pentru `StructuredName.CONTENT_ITEM_TYPE` și `Phone.CONTENT_ITEM_TYPE`.
+- <WORK_CODE>0365 - iOS Containers: identificare dacă contactul aparține de `CNContainerTypeLocal` sau `CNContainerTypeExchange`.
+- <WORK_CODE>0366 - Group Fetch: adăugare parametru opțional pentru a citi contactele dintr-un anumit `GroupId` (Android).
+- <WORK_CODE>0367 - Native Diff: (Opțional) implementare `ChangeCursor` pe Android pentru a citi doar ce s-a schimbat de la ultima scanare.
+- <WORK_CODE>0368 - Unit Test: `NativeContactsService` - simulare răspunsuri native folosind `setMockMethodCallHandler`.
+- <WORK_CODE>0369 - Benchmark Simulator: logare timp execuție pentru 1000 contacte simulate.
+- <WORK_CODE>0370 - Benchmark Real Device: testare pe iPhone/Android real pentru a măsura latența bridge-ului Flutter.
+- <WORK_CODE>0371-0400 - Buffer: tratare excepții de tip `SecurityException` pe versiuni vechi de Android.
 
 ### Local Database (0401 - 0450)
-- <WORK_CODE>0401 - Alegere și configurare `Drift` (sau `Isar`) database.
-- <WORK_CODE>0402 - Definire tabel `ContactsCache`.
-- <WORK_CODE>0403 - Definire tabel `DuplicateGroups`.
-- <WORK_CODE>0404 - Definire tabel `BackupHistory`.
-- <WORK_CODE>0405 - Definire tabel `AppSettings` (persistente).
-- <WORK_CODE>0406 - Implementare `DatabaseService` (Singleton/Provider).
-- <WORK_CODE>0407 - Creare `ContactDao` pentru operații CRUD contacte.
-- <WORK_CODE>0408 - Creare `GroupDao` pentru operații CRUD duplicate.
-- <WORK_CODE>0409 - Creare `BackupDao` pentru istoricul salvărilor.
-- <WORK_CODE>0410 - Implementare logică de migrare bază de date (V1 -> V2).
-- <WORK_CODE>0411 - Implementare funcție "Clear Cache" (SQLite wipe).
-- <WORK_CODE>0412 - Adăugare indexuri SQL pentru căutare rapidă după nume/telefon.
-- <WORK_CODE>0413 - Implementare tranzacții SQL pentru salvări multiple.
-- <WORK_CODE>0414 - Unit test pentru `ContactDao`.
-- <WORK_CODE>0415 - Unit test pentru migrare bază de date.
-- <WORK_CODE>0416 - Verificare dimensiune DB cu 10.000 contacte cache-uite.
-- <WORK_CODE>0417 - Adăugare suport pentru auto-backup DB (opțional).
-- <WORK_CODE>0418-0450 - Rafinament persistență și optimizări query-uri.
+- <WORK_CODE>0401 - Drift Setup: adăugare dependențe `drift`, `sqlite3_flutter_libs`, și `drift_dev`.
+- <WORK_CODE>0402 - Schema `ContactsCache`: definire coloane (id, raw_json, last_scanned_at, version).
+- <WORK_CODE>0403 - Schema `DuplicateGroups`: definire coloane (id, member_ids, score, ignored_at).
+- <WORK_CODE>0404 - Schema `BackupHistory`: definire coloane (id, file_path, contact_count, created_at).
+- <WORK_CODE>0405 - Schema `AppSettings`: tabel de tip key-value pentru setări (limbă, temă, auto-scan).
+- <WORK_CODE>0406 - `DatabaseService`: implementare clasă de acces (Database class) cu deschidere `LazyDatabase`.
+- <WORK_CODE>0407 - `ContactDao`: metode `insertAll`, `deleteAll`, și `watchAllContacts` (Stream).
+- <WORK_CODE>0408 - `GroupDao`: metode `markAsIgnored` și `findGroupsWithScoreAbove(int score)`.
+- <WORK_CODE>0409 - `BackupDao`: metodă `getLatestBackup` și `deleteOldBackups(int limit)`.
+- <WORK_CODE>0410 - Schema Migration: implementare `MigrationStrategy` cu funcție `onUpgrade` pentru versiuni viitoare.
+- <WORK_CODE>0411 - Wipe Service: metodă asincronă care șterge toate tabelele și resetează secvențele primare.
+- <WORK_CODE>0412 - SQL Indexes: adăugare `CREATE INDEX` pe coloana `displayName` (normalizat) în tabelul cache.
+- <WORK_CODE>0413 - Transactions: folosire `transaction(() async { ... })` pentru salvarea grupului de duplicate.
+- <WORK_CODE>0414 - Unit Test: `ContactDao` - testare inserare și recuperare prin Stream.
+- <WORK_CODE>0415 - Integration Test: Verificare migrare de la versiunea 1 la 2 fără pierdere de date.
+- <WORK_CODE>0416 - DB Stress Test: inserare 10.000 rânduri și măsurare timp de query (sub 100ms recomandat).
+- <WORK_CODE>0417 - Auto-backup DB: (Opțional) copiere fișier `.sqlite` într-un folder securizat la fiecare 7 zile.
+- <WORK_CODE>0418-0450 - Buffer: optimizare query-uri de tip `JOIN` pentru statistici complexe pe dashboard.
 
 ---
 
 ## FAZA 3: Algoritmi de Normalizare și Detecție Duplicate (Commit-uri 0451 - 0600)
 
 ### Normalization Service (0451 - 0500)
-- <WORK_CODE>0451 - Creare `NormalizationService`.
-- <WORK_CODE>0452 - Implementare normalizare telefon: eliminare caractere non-numerice.
-- <WORK_CODE>0453 - Normalizare telefon: tratare prefix +40 (România).
-- <WORK_CODE>0454 - Normalizare telefon: tratare prefix 0040.
-- <WORK_CODE>0455 - Normalizare telefon: transformare 07xx în format internațional standard.
-- <WORK_CODE>0456 - Implementare normalizare Email: lowercase + trim.
-- <WORK_CODE>0457 - Implementare normalizare Nume: eliminare spații multiple.
-- <WORK_CODE>0458 - Normalizare Nume: transformare în lowercase pentru comparație.
-- <WORK_CODE>0459 - Normalizare Nume: eliminare opțională diacritice (pentru match).
-- <WORK_CODE>0460 - Normalizare Nume: detecție inversiune Nume/Prenume.
-- <WORK_CODE>0461 - Implementare serviciu de curățare caractere speciale din nume.
-- <WORK_CODE>0462 - Creare `PhoneticService` (ex: Soundex adaptat pentru RO - opțional).
-- <WORK_CODE>0463 - Unit test: Normalizare telefoane (RO, International).
-- <WORK_CODE>0464 - Unit test: Normalizare emailuri (variante complexe).
-- <WORK_CODE>0465 - Unit test: Normalizare nume (diacritice, spații).
-- <WORK_CODE>0466 - Verificare performanță: normalizare 5000 string-uri.
-- <WORK_CODE>0467 - Adăugare suport pentru normalizare numere scurte (short-codes).
-- <WORK_CODE>0468 - Implementare logică de "Smart Trim" pentru nume foarte lungi.
-- <WORK_CODE>0469-0500 - Buffer pentru reguli specifice de normalizare.
+- <WORK_CODE>0451 - `NormalizationService`: interfață cu metode pentru `phone`, `email`, `name`.
+- <WORK_CODE>0452 - Phone Normalization: regex `r'[^0-9+]'` pentru eliminarea parantezelor, spațiilor și cratimelor.
+- <WORK_CODE>0453 - RO Prefix (+40): asigurarea că numerele care încep cu `07` sunt convertite intern în `+407`.
+- <WORK_CODE>0454 - RO Prefix (0040): conversie automată a prefixului `00` în `+` pentru consistență.
+- <WORK_CODE>0455 - Short Numbers: logică de a nu adăuga prefix internațional numerelor cu mai puțin de 5 cifre (ex: 112).
+- <WORK_CODE>0456 - Email Normalization: `toLowerCase().trim()` și eliminare puncte opționale (pentru gmail).
+- <WORK_CODE>0457 - Name Normalization: folosire regex `r'\s+'` pentru a înlocui multiple spații cu unul singur.
+- <WORK_CODE>0458 - Case Insensitive Name: transformare în `toLowerCase()` înainte de orice comparație.
+- <WORK_CODE>0459 - Diacritics Removal: folosire `String.replaceAllMapped` cu un dicționar pentru (ă, î, ș, ț, â).
+- <WORK_CODE>0460 - Swap Detection: logică pentru a detecta dacă "Popescu Ion" este același cu "Ion Popescu".
+- <WORK_CODE>0461 - Special Chars: eliminare simboluri precum `*`, `&`, `_` din câmpurile de nume.
+- <WORK_CODE>0462 - Soundex RO: implementare algoritm fonetic simplificat pentru a potrivi nume pronunțate similar.
+- <WORK_CODE>0463 - Unit Test Phone: matrice de test cu 50 de variante de numere scrise greșit.
+- <WORK_CODE>0464 - Unit Test Email: verificare cazuri cu caractere speciale și domenii multiple.
+- <WORK_CODE>0465 - Unit Test Name: testare cu diacritice și nume compuse (ex: "Popa-Anghel").
+- <WORK_CODE>0466 - Performance Loop: normalizare a 10.000 de intrări și asigurarea unui timp de execuție sub 200ms.
+- <WORK_CODE>0467 - Prefix Mapping: tabel de mapare pentru prefixe internaționale comune (HU, BG, RS).
+- <WORK_CODE>0468 - Smart Trim: eliminare titluri (Dr., Ing., Prof.) din începutul numelui pentru un match mai bun.
+- <WORK_CODE>0469-0500 - Buffer: tratare nume în formatul "LastName, FirstName".
 
 ### Duplicate Detection Logic (0501 - 0550)
-- <WORK_CODE>0501 - Creare `DuplicateDetectorService`.
-- <WORK_CODE>0502 - Algoritm 1: Potrivire după Telefon Identic (Scor 100).
-- <WORK_CODE>0503 - Algoritm 2: Potrivire după Email Identic (Scor 100).
-- <WORK_CODE>0504 - Algoritm 3: Potrivire după Nume Identic (Scor 90).
-- <WORK_CODE>0505 - Algoritm 4: Potrivire după Nume Similar (Levenshtein Distance).
-- <WORK_CODE>0506 - Algoritm 5: Potrivire combinată (Nume Similar + Companie).
-- <WORK_CODE>0507 - Algoritm 6: Potrivire după Nume + parte din Telefon.
-- <WORK_CODE>0508 - Implementare sistem de ponderi (Weight System) pentru scor.
-- <WORK_CODE>0509 - Logică de clasificare: Sigur (95+), Probabil (80-94), Manual (60-79).
-- <WORK_CODE>0510 - Implementare "Transitive Closure" (A=B, B=C => A=B=C).
-- <WORK_CODE>0511 - Optimizare detecție prin indexare prealabilă în memorie (Maps).
-- <WORK_CODE>0512 - Implementare filtru pentru "False Positives" cunoscute.
-- <WORK_CODE>0513 - Logică de ignorare contacte din Whitelist.
-- <WORK_CODE>0514 - Creare serviciu de generare "Motive Potrivire" (Match Reasons).
-- <WORK_CODE>0515 - Unit test: Matrice de testare algoritmi de potrivire.
-- <WORK_CODE>0516 - Unit test: Verificare scoruri pentru diverse cazuri.
-- <WORK_CODE>0517 - Verificare performanță: detecție pe 2000 contacte.
-- <WORK_CODE>0518 - Verificare performanță: detecție pe 5000 contacte.
-- <WORK_CODE>0519 - Implementare logică de procesare în "Chunks" (background).
-- <WORK_CODE>0520 - Adăugare suport pentru detecție duplicate pe baza pozei (hash - opțional).
-- <WORK_CODE>0521-0550 - Rafinare euristici și eliminare bucle infinite.
+- <WORK_CODE>0501 - `DuplicateDetectorService`: serviciu principal care orchestrarează toți algoritmii de match.
+- <WORK_CODE>0502 - Exact Match Phone: scor 100 dacă telefoanele normalizate sunt identice.
+- <WORK_CODE>0503 - Exact Match Email: scor 100 dacă email-urile normalizate sunt identice.
+- <WORK_CODE>0504 - Exact Match Name: scor 90 dacă numele normalizate sunt identice (fără alte metadate).
+- <WORK_CODE>0505 - Levenshtein Distance: calcularea distanței de editare între nume; scor variabil (ex: 1 char diff la 10 chars = scor 80).
+- <WORK_CODE>0506 - Multi-factor Match: scor +10 dacă au aceeași companie, +5 dacă au aceeași adresă.
+- <WORK_CODE>0507 - Partial Phone: scor 70 dacă ultimele 9 cifre ale telefonului coincid (ignorând prefixul).
+- <WORK_CODE>0508 - Weight Configuration: posibilitatea de a ajusta ponderile din setările aplicației (avansat).
+- <WORK_CODE>0509 - Confidence Levels: mapare scoruri (95+ -> `Safe`, 80-94 -> `Probable`, 60-79 -> `Manual`).
+- <WORK_CODE>0510 - Transitive Logic: dacă A e duplicat cu B și B cu C, adăugarea tuturor în același grup.
+- <WORK_CODE>0511 - Memory Indexing: folosire `HashMap` pentru a găsi instant contacte cu același telefon.
+- <WORK_CODE>0512 - False Positive Filter: listă de cuvinte de ignorat (ex: "Pizza", "Taxi", "Mama") care nu ar trebui unite automat.
+- <WORK_CODE>0513 - Whitelist Service: persistență pentru contactele pe care utilizatorul a ales explicit să le "Ignore" anterior.
+- <WORK_CODE>0514 - Match Reason Generator: returnare string localizat (ex: "Telefoane identice", "Nume foarte similare").
+- <WORK_CODE>0515 - Algorithm Matrix Test: verificare cu un set de date pre-definit de 100 de perechi de contacte.
+- <WORK_CODE>0516 - Confidence Test: asigurat că scorul nu depășește niciodată 100 și nu scade sub 0.
+- <WORK_CODE>0517 - Complexity O(n log n): optimizarea algoritmului pentru a evita O(n^2) pe agende mari.
+- <WORK_CODE>0518 - Large Set Benchmark: testare cu 5000 de contacte simulate.
+- <WORK_CODE>0519 - Chunk Processing: împărțirea listei în bucăți de 100 pentru a nu bloca memoria isolate-ului.
+- <WORK_CODE>0520 - Photo Hash Match: (Opțional) calculare `perceptual hash` pe poze pentru a găsi duplicate vizuale.
+- <WORK_CODE>0521-0550 - Buffer: eliminarea duplicatelor interne din interiorul aceluiași contact (ex: același telefon salvat de 2 ori).
 
 ### Background Processing (0551 - 0600)
-- <WORK_CODE>0551 - Configurare `Isolates` (Flutter) pentru scanare grea.
-- <WORK_CODE>0552 - Implementare `ScanController` cu progres în timp real.
-- <WORK_CODE>0553 - Creare serviciu de comunicare între UI și Isolate.
-- <WORK_CODE>0554 - Implementare logică de pauză/repornire scanare.
-- <WORK_CODE>0555 - Adăugare suport pentru Background Task (Android WorkManager).
-- <WORK_CODE>0556 - Adăugare suport pentru Background Task (iOS Background Fetch).
-- <WORK_CODE>0557 - Implementare notificare (Local Notification) la finalizare scanare.
-- <WORK_CODE>0558 - Verificare consum baterie în timpul scanării intense.
-- <WORK_CODE>0559 - Unit test pentru `ScanController` (Mock scan process).
-- <WORK_CODE>0560 - Integrare status scanare în Dashboard widget.
-- <WORK_CODE>0561-0600 - Rafinament procesare asincronă.
+- <WORK_CODE>0551 - Configurare `Isolate`: folosire `compute()` sau `Isolate.spawn` pentru a rula `DuplicateDetectorService` fără a bloca UI.
+- <WORK_CODE>0552 - `ScanController`: gestionare stări (idle, scanning, paused, completed) și variabilă `progress` (0.0 - 1.0).
+- <WORK_CODE>0553 - Port Communication: utilizare `ReceivePort` și `SendPort` pentru a trimite rezultate parțiale (grupuri găsite) către UI.
+- <WORK_CODE>0554 - Pause/Resume Logic: implementare flag de control în interiorul buclei de scanare din Isolate.
+- <WORK_CODE>0555 - Android WorkManager: programare scanare periodică la 24h (doar dacă dispozitivul e la încărcat și pe WiFi).
+- <WORK_CODE>0556 - iOS Background Fetch: înregistrare `BGTaskScheduler` pentru a rula o scanare rapidă în background.
+- <WORK_CODE>0557 - `LocalNotificationService`: afișare notificare (ID unic 1001) cu textul "Am găsit [x] duplicate noi!".
+- <WORK_CODE>0558 - Battery Check: folosire `battery_plus` pentru a opri automat scanarea dacă bateria scade sub 15%.
+- <WORK_CODE>0559 - Unit Test: `ScanController` - verificare dacă progresul ajunge la 1.0 la finalul unei liste de mock contacte.
+- <WORK_CODE>0560 - Dashboard Integration: widget circular mic în Dashboard care pulsează când scanarea este activă.
+- <WORK_CODE>0561-0600 - Buffer: gestionarea scenariului în care utilizatorul închide aplicația în timpul scanării (persistență stare parțială).
 
 ---
 
 ## FAZA 4: Interfață Utilizator - Dashboard și Liste (Commit-uri 0601 - 0800)
 
 ### Dashboard Screen (0601 - 0650)
-- <WORK_CODE>0601 - Implementare `DashboardController`.
-- <WORK_CODE>0602 - UI Dashboard: Header cu profil și status general.
-- <WORK_CODE>0603 - UI Dashboard: Widget central cu număr total contacte.
-- <WORK_CODE>0604 - UI Dashboard: Widget central cu număr duplicate găsite.
-- <WORK_CODE>0605 - UI Dashboard: Buton principal "Scanează Acum".
-- <WORK_CODE>0606 - UI Dashboard: Listă orizontală cu ultimele grupuri găsite.
-- <WORK_CODE>0607 - UI Dashboard: Carduri statistice (economie spațiu, timp).
-- <WORK_CODE>0608 - UI Dashboard: Indicator stare backup (Safe/Warning).
-- <WORK_CODE>0609 - Implementare animații de încărcare date în Dashboard.
-- <WORK_CODE>0610 - Adăugare suport pentru "Pull to Refresh" în Dashboard.
-- <WORK_CODE>0611 - Widget test pentru `DashboardScreen`.
-- <WORK_CODE>0612 - Adăugare gesturi (swipe) pentru navigare rapidă.
-- <WORK_CODE>0613 - Integrare tutorial scurt la prima deschidere Dashboard.
-- <WORK_CODE>0614-0650 - Rafinament UX Dashboard.
+- <WORK_CODE>0601 - `DashboardController`: folosire `Riverpod` (StateNotifierProvider) pentru a aggrega date din `ContactDao` și `GroupDao`.
+- <WORK_CODE>0602 - UI Header: `SliverAppBar` cu înălțime extinsă (120dp), titlu mare și avatar utilizator în colț.
+- <WORK_CODE>0603 - Stats Widget 1: card cu număr total contacte citite din cache-ul local.
+- <WORK_CODE>0604 - Stats Widget 2: card cu număr grupuri de duplicate (folosire `AppColors.error` pentru textul cifrei).
+- <WORK_CODE>0605 - Scan Button: buton central mare, tip `PrimaryButton` cu iconiță `Icons.search` și text "Începe Scanarea".
+- <WORK_CODE>0606 - Recent Groups: `ListView.horizontal` (înălțime 150dp) care arată ultimele 5 grupuri găsite ca `AnimatedCard`.
+- <WORK_CODE>0607 - Savings Card: widget care estimează spațiul eliberat (ex: 2.4 MB) și timpul economisit.
+- <WORK_CODE>0608 - Backup Status: card cu gradient (verde dacă există backup recent < 7 zile, portocaliu altfel).
+- <WORK_CODE>0609 - Shimmer Dashboard: implementare `AppSkeletonLoader` care imită structura cardurilor de statistici.
+- <WORK_CODE>0610 - Pull to Refresh: folosire `RefreshIndicator` care declanșează o citire proaspătă din Native.
+- <WORK_CODE>0611 - Widget Test: `DashboardScreen` - asigurat că cifrele se actualizează când datele din provider se schimbă.
+- <WORK_CODE>0612 - Dashboard Gestures: implementare `InkWell` pe fiecare card statistic pentru a naviga la ecranele corespunzătoare.
+- <WORK_CODE>0613 - Spotlight Tutorial: folosire `showcaseview` package pentru a evidenția butonul de scanare la prima rulare.
+- <WORK_CODE>0614-0650 - Buffer: adaptare layout pentru tablete (folosire `GridView` în loc de `Column`).
 
 ### Duplicate List & Filters (0651 - 0700)
-- <WORK_CODE>0651 - Implementare `DuplicateListController`.
-- <WORK_CODE>0652 - UI Listă Duplicate: Listă verticală cu Lazy Loading.
-- <WORK_CODE>0653 - UI Listă Duplicate: Tab-uri (Sigur, Probabil, Toate).
-- <WORK_CODE>0654 - UI Listă Duplicate: Căutare în timp real după nume.
-- <WORK_CODE>0655 - UI Listă Duplicate: Filtrare după scor.
-- <WORK_CODE>0656 - UI Listă Duplicate: Filtrare după tip duplicat (Telefon/Email).
-- <WORK_CODE>0657 - Implementare Selectie Multiplă (Bulk Action).
-- <WORK_CODE>0658 - UI Card Grup: Afișare contacte principale și motive.
-- <WORK_CODE>0659 - UI Card Grup: Acțiuni rapide (Ignoră, Merge Instant).
-- <WORK_CODE>0660 - Adăugare animație la ștergerea unui grup din listă.
-- <WORK_CODE>0661 - Implementare "Empty Search Result" state.
-- <WORK_CODE>0662 - Widget test pentru `DuplicateListScreen`.
-- <WORK_CODE>0663 - Verificare performanță listă cu 500 grupuri.
-- <WORK_CODE>0664-0700 - Rafinament UI listă și tranziții.
+- <WORK_CODE>0651 - `DuplicateListController`: filtrare și sortare în memorie a grupurilor primite din DB.
+- <WORK_CODE>0652 - Duplicate List UI: `ListView.separated` cu `itemCount` din provider; separator `AppDivider`.
+- <WORK_CODE>0653 - Filter Tabs: `TabBar` personalizat cu 3 opțiuni (Sigur - scor >95, Probabil - scor 80-94, Manual - sub 80).
+- <WORK_CODE>0654 - Real-time Search: `AppTextField` legat de un `Debouncer` (300ms) pentru filtrare după nume în listă.
+- <WORK_CODE>0655 - Score Slider: (Opțional) filtru tip slider pentru a seta manual scorul minim de afișare.
+- <WORK_CODE>0656 - Type Chips: `FilterChip` pentru filtrare rapidă după "Doar Telefon" sau "Doar Email".
+- <WORK_CODE>0657 - Bulk Mode: activare prin long-press; afișare `Checkbox` pe fiecare card și bară de acțiuni jos (Merge/Ignore).
+- <WORK_CODE>0658 - Group Card: layout cu 2-3 mini-avatare suprapuse și text "3 contacte identificate prin telefon".
+- <WORK_CODE>0659 - Quick Actions: butoane iconiță mici în colțul cardului pentru "Ignore" (ștergere din listă) și "Merge" (auto-merge).
+- <WORK_CODE>0660 - Item Animation: folosire `AnimatedList` pentru eliminarea grupurilor cu un efect de glisare la stânga.
+- <WORK_CODE>0661 - Empty Search: afișare `SearchEmptyState` cu buton de "Clear Search".
+- <WORK_CODE>0662 - Widget Test: `DuplicateListScreen` - verificare dacă tab-ul "Sigur" arată doar elementele cu scor mare.
+- <WORK_CODE>0663 - Performance Test: scroll infinit cu 1000 de grupuri și asigurat 60 FPS.
+- <WORK_CODE>0664-0700 - Buffer: implementare "Sticky Headers" pentru data scanării grupurilor.
 
 ### Merge Detail Screen (0701 - 0750)
-- <WORK_CODE>0701 - Implementare `MergeDetailController`.
-- <WORK_CODE>0702 - UI Merge Detail: Vizualizare comparativă contacte (Side by Side).
-- <WORK_CODE>0703 - UI Merge Detail: Selectie manuală contact "Master".
-- <WORK_CODE>0704 - UI Merge Detail: Selectie câmpuri individuale de păstrat.
-- <WORK_CODE>0705 - UI Merge Detail: Evidențiere conflicte (valori diferite).
-- <WORK_CODE>0706 - UI Merge Detail: Editare rapidă nume final rezultat.
-- <WORK_CODE>0707 - UI Merge Detail: Vizualizare preview contact final.
-- <WORK_CODE>0708 - Adăugare buton "Confirmă & Unește".
-- <WORK_CODE>0709 - Implementare logică de blocare merge dacă există erori UI.
-- <WORK_CODE>0710 - Widget test pentru `MergeDetailScreen`.
-- <WORK_CODE>0711-0750 - Rafinament UI detalii și logică selecție.
+- <WORK_CODE>0701 - `MergeDetailController`: gestionare stării de "Preview" a contactului final.
+- <WORK_CODE>0702 - Side-by-Side UI: afișare contacte sub formă de coloane (sau `PageView` pe ecrane mici) pentru comparare.
+- <WORK_CODE>0703 - Master Selection: evidențierea cardului selectat ca sursă principală folosind o bordură groasă `AppColors.blue500`.
+- <WORK_CODE>0704 - Field Selection: fiecare rând (telefon/email) are un `Radio` button pentru a alege care valoare merge în final.
+- <WORK_CODE>0705 - Conflict Highlighting: colorare cu `AppColors.warning` a rândurilor unde valorile diferă (ex: "Ion" vs "Ioan").
+- <WORK_CODE>0706 - Final Name Edit: `AppTextField` în partea de sus care permite editarea numelui final rezultat.
+- <WORK_CODE>0707 - Live Preview: secțiune jos (floating) care arată cum va arăta `ContactAvatar` și numele după merge.
+- <WORK_CODE>0708 - Merge Button: buton tip `PrimaryButton` cu textul "Confirmă îmbinarea celor [x] contacte".
+- <WORK_CODE>0709 - Validation Logic: dezactivare buton merge dacă există câmpuri obligatorii neselectate (conflict nerezolvat).
+- <WORK_CODE>0710 - Widget Test: `MergeDetailScreen` - verificare dacă selectarea unui radio button actualizează preview-ul.
+- <WORK_CODE>0711-0750 - Buffer: suport pentru îmbinarea a mai mult de 2 contacte (scroll orizontal).
 
 ### Settings & Profile (0751 - 0800)
-- <WORK_CODE>0751 - Implementare `SettingsController`.
-- <WORK_CODE>0752 - UI Settings: Schimbare Temă (Dark/Light/System).
-- <WORK_CODE>0753 - UI Settings: Schimbare Limbă.
-- <WORK_CODE>0754 - UI Settings: Ajustare sensibilitate algoritm (Scor minim).
-- <WORK_CODE>0755 - UI Settings: Gestionare Whitelist (Contacte Ignorate).
-- <WORK_CODE>0756 - UI Settings: Secțiune Backup (Auto-backup settings).
-- <WORK_CODE>0757 - UI Settings: Despre Aplicație, Versiune, Licențe.
-- <WORK_CODE>0758 - UI Settings: Buton Șterge Istoric Scanare.
-- <WORK_CODE>0759 - Implementare feedback către dezvoltator (Email/Formular).
-- <WORK_CODE>0760 - Widget test pentru `SettingsScreen`.
-- <WORK_CODE>0761-0800 - Rafinament UI setări.
+- <WORK_CODE>0751 - `SettingsController`: persistarea setărilor folosind `AppSettingsDao` și `ThemeProvider`.
+- <WORK_CODE>0752 - Theme Toggle: widget `SettingsTile` cu `AppSwitch` pentru Dark Mode.
+- <WORK_CODE>0753 - Language Picker: widget `SettingsTile` care deschide `LanguageSelector` dialog.
+- <WORK_CODE>0754 - Sensitivity Settings: `Slider` (60-100) care definește pragul de scor pentru tab-ul "Sigur".
+- <WORK_CODE>0755 - Whitelist Management: ecran secundar care listează contactele ignorate cu opțiune de "Remove".
+- <WORK_CODE>0756 - Auto-backup Toggle: setare pentru a efectua un backup automat înainte de orice operațiune de merge.
+- <WORK_CODE>0757 - About Section: `ListTile` care afișează versiunea din `pubspec.yaml` și link către licențe Open Source.
+- <WORK_CODE>0758 - Clear History: buton de "Danger" care șterge istoricul de merge dar păstrează backup-urile.
+- <WORK_CODE>0759 - Feedback Flow: integrare `share_plus` pentru a trimite log-uri (fără PII) către suport.
+- <WORK_CODE>0760 - Widget Test: `SettingsScreen` - asigurat că schimbarea temei apelează `ThemeProvider`.
+- <WORK_CODE>0761-0800 - Buffer: adăugare secțiune de "Întrebări frecvente" (FAQ) în format text localizat.
 
 ---
 
 ## FAZA 5: Merge Engine, Backup și Istoric (Commit-uri 0801 - 0920)
 
 ### Backup Service (0801 - 0840)
-- <WORK_CODE>0801 - Creare `BackupService`.
-- <WORK_CODE>0802 - Implementare export contacte în format VCF (vCard).
-- <WORK_CODE>0803 - Implementare export contacte în format JSON (pentru restaurare internă).
-- <WORK_CODE>0804 - Logică de generare nume fișier backup: `backup_YYYYMMDD_HHMMSS`.
-- <WORK_CODE>0805 - Implementare serviciu de stocare fișiere backup (Local Storage).
-- <WORK_CODE>0806 - Creare `BackupMetadata` model.
-- <WORK_CODE>0807 - Implementare logică de "Auto-cleanup" backup-uri vechi (limită număr/zile).
-- <WORK_CODE>0808 - Implementare verificare spațiu liber înainte de backup.
-- <WORK_CODE>0809 - UI Listă Backup-uri: afișare dată, dimensiune și nr. contacte.
-- <WORK_CODE>0810 - Implementare funcție "Share Backup" (partajare fișier VCF).
-- <WORK_CODE>0811 - Implementare funcție "Restaurare din Backup".
-- <WORK_CODE>0812 - Logică de validare integritate fișier backup înainte de restaurare.
-- <WORK_CODE>0813 - Unit test pentru `BackupService`.
-- <WORK_CODE>0814 - Verificare performanță: backup 5000 contacte.
-- <WORK_CODE>0815-0840 - Buffer pentru stabilitate serviciu backup.
+- <WORK_CODE>0801 - `BackupService`: interfață cu metode `createBackup()`, `restoreBackup(String path)`, `listBackups()`.
+- <WORK_CODE>0802 - vCard Export: implementare generator `vCard 3.0` (standard compatibil iOS/Android).
+- <WORK_CODE>0803 - JSON Export: salvare stare completă a contactului (inclusiv metadate interne) pentru restaurare 1:1.
+- <WORK_CODE>0804 - Naming Convention: funcție care returnează `backup_20240622_2305.vcf`.
+- <WORK_CODE>0805 - Storage Management: utilizarea `path_provider` pentru a salva fișierele în `getApplicationDocumentsDirectory()/backups`.
+- <WORK_CODE>0806 - `BackupMetadata`: model care stochează `checksum` (SHA-256) pentru a verifica integritatea fișierului.
+- <WORK_CODE>0807 - Auto-cleanup: logică de a păstra doar ultimele 10 backup-uri (ștergere automată cele mai vechi).
+- <WORK_CODE>0808 - Space Check: verificare `StorageDetails` înainte de pornire (necesar minim 50MB liberi).
+- <WORK_CODE>0809 - Backup UI List: ecran cu `ListView` ce afișează data (format RO) și dimensiunea (KB/MB).
+- <WORK_CODE>0810 - Share Integration: folosire `share_plus` pentru a trimite fișierul VCF către alte aplicații.
+- <WORK_CODE>0811 - Restore Logic: citire fișier VCF/JSON și apelare servicii native de scriere în agendă.
+- <WORK_CODE>0812 - Integrity Check: validare structură fișier (header/footer) înainte de a începe procesul de restaurare.
+- <WORK_CODE>0813 - Unit Test: `BackupService` - verificare dacă fișierul generat are formatul vCard valid.
+- <WORK_CODE>0814 - Benchmark: măsurare timp salvare pentru 5000 contacte (țintă sub 5 secunde).
+- <WORK_CODE>0815-0840 - Buffer: suport pentru export imagini contact (Base64 în vCard) - opțional din setări.
 
 ### Merge Engine (0841 - 0880)
-- <WORK_CODE>0841 - Creare `MergeEngineService`.
-- <WORK_CODE>0842 - Implementare logică "Safe Merge": obligativitate backup.
-- <WORK_CODE>0843 - Android: Implementare `writeContact` (ContentProvider Batch).
-- <WORK_CODE>0844 - Android: Implementare `deleteContact`.
-- <WORK_CODE>0845 - iOS: Implementare `writeContact` (CNContactStore).
-- <WORK_CODE>0846 - iOS: Implementare `deleteContact`.
-- <WORK_CODE>0847 - Implementare logică de "Atomic Merge" (all or nothing) - unde e posibil.
-- <WORK_CODE>0848 - Tratare erori de scriere: Read-Only, Insufficient Permissions.
-- <WORK_CODE>0849 - Implementare logică de "Conflict Resolution" la scriere.
-- <WORK_CODE>0850 - Creare raport post-merge (ce s-a schimbat efectiv).
-- <WORK_CODE>0851 - Implementare progres merge în UI (Step by Step).
-- <WORK_CODE>0852 - Adăugare suport pentru merge poze profil.
-- <WORK_CODE>0853 - Verificare consistență date după merge (re-scanare grup).
-- <WORK_CODE>0854 - Unit test pentru logică `MergeEngine` (Mock native).
-- <WORK_CODE>0855 - Verificare pe dispozitiv real: merge 10 grupuri simultan.
+- <WORK_CODE>0841 - `MergeEngineService`: coordonatorul care execută backup -> scriere contact nou -> ștergere contacte vechi.
+- <WORK_CODE>0842 - Safe Guard: blocare funcție `executeMerge` dacă nu s-a generat un backup în ultimele 5 minute.
+- <WORK_CODE>0843 - Android Batch Write: folosire `ArrayList<ContentProviderOperation>` pentru a asigura atomicitatea scrierii.
+- <WORK_CODE>0844 - Android Delete: adăugare operațiune de tip `newDelete` în batch-ul de ContentProvider.
+- <WORK_CODE>0845 - iOS Batch: folosire `CNSaveRequest` pentru a grupa operațiunile de adăugare și ștergere.
+- <WORK_CODE>0846 - iOS Delete: apelare `saveRequest.deleteContact()` pe obiectele `CNMutableContact`.
+- <WORK_CODE>0847 - Transactionality: implementare rollback logic (dacă scrierea eșuează, nu se șterg contactele vechi).
+- <WORK_CODE>0848 - Exception Mapping: conversie erori native (ex: `AccessDeniedException`) în mesaje localizate pentru utilizator.
+- <WORK_CODE>0849 - Conflict Resolver: regulă automată de a păstra valoarea cea mai lungă (ex: "Ion Popescu" vs "Ion").
+- <WORK_CODE>0850 - Merge Report: generare model `MergeReport` care conține lista ID-urilor șterse și ID-ul nou creat.
+- <WORK_CODE>0851 - Merge Progress UI: dialog cu indicator de progres liniar și text "Se scrie contactul [x]...".
+- <WORK_CODE>0852 - Photo Merger: logică de a alege poza cu rezoluția cea mai mare dintre duplicatele selectate.
+- <WORK_CODE>0853 - Post-Merge Verify: re-scanare automată a contactului nou creat pentru a asigura că nu mai are duplicate.
+- <WORK_CODE>0854 - Unit Test: `MergeEngine` folosind Mockito pentru a simula succes/eșec în serviciul nativ.
+- <WORK_CODE>0855 - Integration Test: execuție merge pe Emulator cu 50 contacte și verificare finală a numărului total.
 - <WORK_CODE>0856-0880 - Buffer pentru stabilitate engine scriere.
 
 ### History & Activity Log (0881 - 0920)
-- <WORK_CODE>0881 - Creare `HistoryService`.
-- <WORK_CODE>0882 - Definire `HistoryEntry` model.
-- <WORK_CODE>0883 - Implementare salvare automată după fiecare merge.
-- <WORK_CODE>0884 - UI History Screen: Listă cronologică activități.
-- <WORK_CODE>0885 - UI History Detail: Detalii despre contactele unite într-o sesiune.
-- <WORK_CODE>0886 - Implementare funcție "Undo Merge" (bazată pe backup JSON).
-- <WORK_CODE>0887 - Logică de marcare istoric ca "Incomplet" în caz de erori.
-- <WORK_CODE>0888 - Widget test pentru `HistoryScreen`.
-- <WORK_CODE>0889-0920 - Rafinament istoric.
+- <WORK_CODE>0881 - `HistoryService`: interfață pentru salvarea și recuperarea jurnalului de activități din DB.
+- <WORK_CODE>0882 - `HistoryEntry`: model cu `type` (merge/backup/scan), `status` (success/failed), și `summary`.
+- <WORK_CODE>0883 - Auto-logging: integrare apeluri `historyService.add()` în toate serviciile principale.
+- <WORK_CODE>0884 - History UI: `ListView` cronologic cu iconițe specifice fiecărei acțiuni și dată relativă (ex: "Acum 5 min").
+- <WORK_CODE>0885 - History Detail: ecran ce arată exact ce contacte au fost implicate (nume înainte și după).
+- <WORK_CODE>0886 - Undo Action: buton "Undo" care inversează ultimul merge folosind datele din backup-ul asociat.
+- <WORK_CODE>0887 - Incomplete Status: marcare intrări în jurnal dacă aplicația s-a închis brusc (folosire `lastSeenAt` timestamp).
+- <WORK_CODE>0888 - Widget Test: `HistoryEntry` - asigurat că lista se sortează cu cea mai recentă acțiune sus.
+- <WORK_CODE>0889-0920 - Buffer: funcție de export istoric în format CSV (pentru power users).
 
 ---
 
 ## FAZA 6: Testare Finală, Optimizare și Store (Commit-uri 0921 - 1000)
 
 ### Testing & Bug Fixing (0921 - 0960)
-- <WORK_CODE>0921 - Testare regresie pe Android 10, 11, 12, 13, 14.
-- <WORK_CODE>0922 - Testare regresie pe iOS 15, 16, 17.
-- <WORK_CODE>0923 - Testare performanță agendă 10.000 contacte.
-- <WORK_CODE>0924 - Testare stres: închidere aplicație în timpul merge-ului.
-- <WORK_CODE>0925 - Testare lipsă internet (nu ar trebui să afecteze funcționarea).
-- <WORK_CODE>0926 - Rezolvare bug-uri UI (overflow, contrast).
-- <WORK_CODE>0927 - Optimizare dimensiune APK/IPA (eliminare asset-uri nefolosite).
-- <WORK_CODE>0928 - Verificare scurgeri de memorie (Memory Leaks) în Isolate-uri.
-- <WORK_CODE>0929 - Testare cu contacte din surse multiple (Exchange, SIM, WhatsApp).
-- <WORK_CODE>0930-0960 - Sesiune intensă de bug-fixing bazată pe testele de mai sus.
+- <WORK_CODE>0921 - Regression Android: testare flow complet pe Device-uri reale (Samsung S23, Pixel 7, Huawei).
+- <WORK_CODE>0922 - Regression iOS: testare pe iPhone 13, 15 Pro și iPad (multi-tasking check).
+- <WORK_CODE>0923 - Stress Test 10k: generare script de populare agendă cu 10.000 contacte și scanare.
+- <WORK_CODE>0924 - Interrupt Test: forțarea închiderii aplicației (Kill process) în timpul scrierii și verificare integritate DB.
+- <WORK_CODE>0925 - Offline Test: rulare scanare în mod avion pentru a confirma că nicio dată nu părăsește dispozitivul.
+- <WORK_CODE>0926 - UI Polish: verificare margini, padding-uri și contrast conform WCAG 2.1 (AA).
+- <WORK_CODE>0927 - Bundle Optimization: rulare `flutter build appbundle --obfuscate` și analiză dimensiune (țintă sub 25MB).
+- <WORK_CODE>0928 - Memory Leak Audit: folosire `DevTools` Memory tab pentru a identifica stream-uri neînchise.
+- <WORK_CODE>0929 - Multi-Source Test: verificare merge între un contact Google și unul de pe cartela SIM.
+- <WORK_CODE>0930-0960 - Bug-Fixing: rezolvarea tichetelor deschise în timpul fazei de testare beta.
 
 ### Final Prep & Store Compliance (0961 - 1000)
-- <WORK_CODE>0961 - Generare Screenshot-uri pentru Google Play.
-- <WORK_CODE>0962 - Generare Screenshot-uri pentru App Store.
-- <WORK_CODE>0963 - Finalizare descriere aplicație și cuvinte cheie.
-- <WORK_CODE>0964 - Configurare App Store Connect: App Privacy details.
-- <WORK_CODE>0965 - Configurare Google Play Console: Data Safety section.
-- <WORK_CODE>0966 - Audit final loguri: asigurare că nu există PII.
-- <WORK_CODE>0967 - Verificare link-uri suport și privacy policy.
-- <WORK_CODE>0968 - Pregătire Release Notes (RO/EN).
-- <WORK_CODE>0969 - Incrementare versiune la 1.0.0.
-- <WORK_CODE>0970 - Build final de producție (Release mode).
-- <WORK_CODE>0971-1000 - Buffer pentru feedback de la Store Review.
+- <WORK_CODE>0961 - Play Store Assets: generare imagini 1024x500 (Feature Graphic) și 512x512 (App Icon).
+- <WORK_CODE>0962 - App Store Assets: generare screenshot-uri pentru 6.5" și 5.5" iPhone display.
+- <WORK_CODE>0963 - Store Metadata: redactare titlu (max 50 chars) și descriere (cu keywords contacte, duplicate, backup).
+- <WORK_CODE>0964 - Apple Privacy: completare chestionar (Data not collected, Data not linked).
+- <WORK_CODE>0965 - Google Data Safety: declarare permisiuni `READ_CONTACTS` și motivul utilizării acestora.
+- <WORK_CODE>0966 - Log Audit: scanare finală a întregului cod pentru a elimina orice `AppLogger.info` ce ar putea conține nume.
+- <WORK_CODE>0967 - Compliance Check: asigurat că link-ul de "Delete Account/Data" din setări funcționează corect.
+- <WORK_CODE>0968 - Release Notes: creare fișier `CHANGELOG.md` cu versiunea 1.0.0 "Initial Release".
+- <WORK_CODE>0969 - Versioning: actualizare `pubspec.yaml` și `build.gradle` la `version: 1.0.0+1`.
+- <WORK_CODE>0970 - Production Build: generare `.aab` (Android) și `.ipa` (iOS) semnate oficial.
+- <WORK_CODE>0971-1000 - Submission: încărcare în Console și monitorizare status review (re-build în caz de reject).
