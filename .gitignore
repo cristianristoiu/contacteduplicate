@@ -1,0 +1,11 @@
+.idea/
+*.xml
+*.iml
+.DS_Store
+Thumbs.db
+node_modules/
+dist/
+build/
+bin/
+obj/
+out/
