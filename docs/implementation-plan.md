@@ -70,7 +70,7 @@ Construirea unei aplicații mobile Android și iOS care găsește, verifică și
 - ~~<WORK_CODE>0049 - Renumerotare plan implementare.~~ COMPLETAT (CHT0049)
 - ~~<WORK_CODE>0050 - Refacere plan de implementare detaliat (1000 commit-uri) și mapare istoric.~~ COMPLETAT (JNI0050)
 - ~~<WORK_CODE>0051 - Creare widget `AppLogo` cu suport pentru diferite dimensiuni.~~ COMPLETAT (JNI0051)
-- <WORK_CODE>0052 - Implementare widget `StatusBadge` pentru scorul de încredere.
+- ~~<WORK_CODE>0052 - Implementare widget `StatusBadge` pentru scorul de încredere.~~ COMPLETAT (JNI0052)
 - <WORK_CODE>0053 - Creare widget `ContactAvatar` cu fallback la inițiale.
 - <WORK_CODE>0054 - Implementare `AppDivider` personalizat conform temei.
 - <WORK_CODE>0055 - Creare widget `AppLoadingIndicator` (animație custom).
