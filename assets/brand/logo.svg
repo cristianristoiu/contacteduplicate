@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="cardBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#24c8ff"/>
+      <stop offset="100%" stop-color="#4d88ff"/>
+    </linearGradient>
+    <linearGradient id="cardPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a866ff"/>
+      <stop offset="100%" stop-color="#7a3eff"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="25" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <g transform="translate(345, 342) rotate(-6)">
+      <rect width="170" height="245" rx="35" fill="url(#cardBlue)"/>
+      <circle cx="85" cy="85" r="45" fill="white"/>
+      <path d="M48 170c0-22 17-38 37-38s37 16 37 38v10H48v-10z" fill="white"/>
+      <rect x="38" y="195" width="95" height="12" rx="6" fill="white" opacity="0.4"/>
+      <rect x="38" y="217" width="65" height="12" rx="6" fill="white" opacity="0.4"/>
+    </g>
+    <g transform="translate(509, 342) rotate(6)">
+      <rect width="170" height="245" rx="35" fill="url(#cardPurple)"/>
+      <circle cx="85" cy="85" r="45" fill="white"/>
+      <path d="M48 170c0-22 17-38 37-38s37 16 37 38v10H48v-10z" fill="white"/>
+      <rect x="38" y="195" width="95" height="12" rx="6" fill="white" opacity="0.4"/>
+      <rect x="38" y="217" width="65" height="12" rx="6" fill="white" opacity="0.4"/>
+    </g>
+    <g transform="translate(512, 587)">
+      <circle r="65" fill="#0d1839" stroke="#3a4a8c" stroke-width="3"/>
+      <circle r="58" fill="#15224e"/>
+      <g transform="translate(-25, -30)">
+        <rect x="18" y="18" width="14" height="25" rx="4" fill="white"/>
+        <path d="M7 25l18-20 18 20" fill="none" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 55c0-8 6-12 13-12s13 4 13 12" fill="none" stroke="white" stroke-width="10" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+</svg>
