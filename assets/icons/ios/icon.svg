@@ -1,5 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
+    <!-- Background Gradient (Standard for iOS icon) -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#061126"/>
+      <stop offset="100%" stop-color="#111F4C"/>
+    </linearGradient>
+
     <!-- Card Gradients -->
     <linearGradient id="cardBlue" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#24c8ff"/>
@@ -32,9 +38,11 @@
     </filter>
   </defs>
 
-  <!-- Logo Container -->
+  <!-- iOS Background (No transparency allowed) -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- Content -->
   <g filter="url(#shadow)">
-    <!-- App Icon Shape (Removed for transparent version, keeping only cards and merge icon) -->
     
     <!-- Left Card (Blue) -->
     <g transform="translate(345, 342) rotate(-6)">

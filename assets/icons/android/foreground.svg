@@ -32,9 +32,8 @@
     </filter>
   </defs>
 
-  <!-- Logo Container -->
-  <g filter="url(#shadow)">
-    <!-- App Icon Shape (Removed for transparent version, keeping only cards and merge icon) -->
+  <!-- Content (Centered in Adaptive Icon safe zone - roughly 66% of 1024x1024) -->
+  <g filter="url(#shadow)" transform="scale(0.8) translate(128, 128)">
     
     <!-- Left Card (Blue) -->
     <g transform="translate(345, 342) rotate(-6)">
