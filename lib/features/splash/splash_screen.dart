@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router/app_router.dart';
 import '../../core/l10n/app_localizations.dart';
+import '../../shared/widgets/app_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -34,11 +34,7 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              SvgPicture.asset(
-                'assets/brand/logo.svg',
-                width: 180,
-                height: 180,
-              ),
+              const AppLogo(size: 180),
               const SizedBox(height: 24),
               Text(
                 l10n.text('app_title'),
