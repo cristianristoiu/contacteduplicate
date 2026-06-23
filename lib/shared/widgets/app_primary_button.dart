@@ -8,6 +8,7 @@ class AppPrimaryButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.isLoading = false,
+    this.isEnabled = true,
     super.key,
   });
 
@@ -15,54 +16,58 @@ class AppPrimaryButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final IconData? icon;
   final bool isLoading;
+  final bool isEnabled;
 
   @override
   Widget build(BuildContext context) {
-    final isEnabled = onPressed != null;
+    final canUse = onPressed != null && isEnabled;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: isEnabled ? AppColors.brandGradient : null,
-        color: isEnabled ? null : Theme.of(context).disabledColor.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+    return Opacity(
+      opacity: canUse ? 1 : 0.5,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: canUse ? AppColors.brandGradient : null,
+          color: canUse ? null : Theme.of(context).disabledColor.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(18),
-          onTap: isEnabled && !isLoading ? onPressed : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 160),
-              child: isLoading
-                  ? const SizedBox(
-                      key: ValueKey<String>('loading'),
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Row(
-                      key: const ValueKey<String>('content'),
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        if (icon != null) ...<Widget>[
-                          Icon(icon, color: Colors.white, size: 20),
-                          const SizedBox(width: 10),
-                        ],
-                        Text(
-                          label,
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: canUse && !isLoading ? onPressed : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 160),
+                child: isLoading
+                    ? const SizedBox(
+                        key: ValueKey<String>('loading'),
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
-                      ],
-                    ),
+                      )
+                    : Row(
+                        key: const ValueKey<String>('content'),
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          if (icon != null) ...<Widget>[
+                            Icon(icon, color: Colors.white, size: 20),
+                            const SizedBox(width: 10),
+                          ],
+                          Text(
+                            label,
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
             ),
           ),
         ),
