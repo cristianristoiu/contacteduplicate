@@ -64,4 +64,4 @@ Exemple:
 - Daca se fac teste, acestea trebuie sa insoteasca implementarea, nu sa inlocuiasca implementarea.
 - Este OBLIGATORIU ca numerotarea commiturilor sa fie consecutiva!
 - Daca exista un plan de implementare, orice modificare a numarului commitului trebuie actualizata in plan;
-- Daca sunt corecturi pe un commit anume, acele commituri pastreaza numarul commitului insa se adauga prefixul "Corectie: ". Un exemplu de astfel de commit este `JNI0058 - Corectie: Fixare eroare afisare dashboard`, in conditiile in care commitul initial e posibil sa fi fost `JNI0058 - Implementare design dashboard`
+- Daca sunt corecturi pe un commit anume, acele commituri pastreaza numarul commitului insa se adauga prefixul "Corectie: ". Un exemplu de astfel de commit este `JNI0059 - Corectie: Fixare eroare afisare dashboard`, in conditiile in care commitul initial e posibil sa fi fost `JNI0059 - Implementare design dashboard`
