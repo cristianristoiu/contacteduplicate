@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
 class AppEmptyState extends StatelessWidget {
   final IconData? icon;
+  final String? illustrationPath;
+  final double illustrationHeight;
   final String title;
   final String description;
   final Widget? action;
@@ -11,6 +16,8 @@ class AppEmptyState extends StatelessWidget {
   const AppEmptyState({
     super.key,
     this.icon,
+    this.illustrationPath,
+    this.illustrationHeight = 180,
     required this.title,
     required this.description,
     this.action,
@@ -20,6 +27,7 @@ class AppEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final visual = _buildVisual(isDark);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -27,20 +35,10 @@ class AppEmptyState extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (icon != null)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: (isDark ? AppColors.blue500 : AppColors.blue500).withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 64,
-                color: AppColors.blue500,
-              ),
-            ),
-          const SizedBox(height: 32),
+          if (visual != null) ...[
+            visual,
+            const SizedBox(height: 32),
+          ],
           Text(
             title,
             textAlign: TextAlign.center,
@@ -62,6 +60,70 @@ class AppEmptyState extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+
+  Widget? _buildVisual(bool isDark) {
+    final fallbackIcon = _buildFallbackIcon(isDark);
+    final normalizedPath = illustrationPath?.trim();
+
+    if (normalizedPath != null && normalizedPath.isNotEmpty) {
+      return _EmptyStateIllustration(
+        path: normalizedPath,
+        height: illustrationHeight,
+        fallback: fallbackIcon,
+      );
+    }
+
+    return fallbackIcon;
+  }
+
+  Widget? _buildFallbackIcon(bool isDark) {
+    if (icon == null) {
+      return null;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.blue500.withOpacity(isDark ? 0.1 : 0.08),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        icon,
+        size: 64,
+        color: AppColors.blue500,
+      ),
+    );
+  }
+}
+
+class _EmptyStateIllustration extends StatelessWidget {
+  final String path;
+  final double height;
+  final Widget? fallback;
+
+  const _EmptyStateIllustration({
+    required this.path,
+    required this.height,
+    required this.fallback,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: rootBundle.loadString(path),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done || snapshot.hasError || snapshot.data == null) {
+          return fallback ?? SizedBox(height: height);
+        }
+
+        return SvgPicture.string(
+          snapshot.data!,
+          height: height,
+          fit: BoxFit.contain,
+        );
+      },
     );
   }
 }
