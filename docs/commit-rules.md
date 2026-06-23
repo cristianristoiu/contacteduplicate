@@ -62,3 +62,6 @@ Exemple:
 - Commiturile trebuie sa fie consecutive si sa contina implementare efectiva.
 - Pentru dezvoltare sau implementare, commiturile trebuie sa grupeze logic fisierele relevante: cod, view, rute, traduceri si teste, dupa caz.
 - Daca se fac teste, acestea trebuie sa insoteasca implementarea, nu sa inlocuiasca implementarea.
+- Este OBLIGATORIU ca numerotarea commiturilor sa fie consecutiva!
+- Daca exista un plan de implementare, orice modificare a numarului commitului trebuie actualizata in plan;
+- Daca sunt corecturi pe un commit anume, acele commituri pastreaza numarul commitului insa se adauga prefixul "Corectie: ". Un exemplu de astfel de commit este `JNI1001 - Corectie: Fixare eroare afisare dashboard`, in conditiile in care commitul initial e posibil sa fi fost `JNI1001 - Implementare design dashboard`
