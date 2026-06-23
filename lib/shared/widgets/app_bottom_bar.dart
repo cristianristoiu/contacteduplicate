@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../app/router/app_router.dart';
+import '../../core/theme/app_colors.dart';
 
 class AppBottomBarItem {
   final IconData icon;
@@ -57,19 +60,47 @@ class AppBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SafeArea(
       top: false,
-      child: NavigationBar(
-        height: 64,
-        selectedIndex: currentIndex,
-        destinations: items.map((item) {
-          return NavigationDestination(
-            icon: Icon(item.icon),
-            selectedIcon: Icon(item.activeIcon),
-            label: item.label,
-          );
-        }).toList(growable: false),
-        onDestinationSelected: (index) => onItemSelected(items[index]),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: (isDark ? AppColors.darkSurface : AppColors.lightSurface).withOpacity(0.82),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                ),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.28 : 0.08),
+                    blurRadius: 24,
+                    offset: const Offset(0, -6),
+                  ),
+                ],
+              ),
+              child: NavigationBar(
+                height: 64,
+                backgroundColor: Colors.transparent,
+                indicatorColor: AppColors.blue500.withOpacity(isDark ? 0.22 : 0.12),
+                selectedIndex: currentIndex,
+                destinations: items.map((item) {
+                  return NavigationDestination(
+                    icon: Icon(item.icon),
+                    selectedIcon: Icon(item.activeIcon),
+                    label: item.label,
+                  );
+                }).toList(growable: false),
+                onDestinationSelected: (index) => onItemSelected(items[index]),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
