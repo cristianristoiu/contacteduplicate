@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import 'app_secondary_button.dart';
 
 class AppErrorState extends StatelessWidget {
   final String title;
@@ -9,6 +10,8 @@ class AppErrorState extends StatelessWidget {
   final String? technicalDetails;
   final IconData icon;
   final bool fullScreen;
+  final VoidCallback? onRetry;
+  final String retryLabel;
 
   const AppErrorState({
     super.key,
@@ -17,6 +20,8 @@ class AppErrorState extends StatelessWidget {
     this.technicalDetails,
     this.icon = Icons.error_outline_rounded,
     this.fullScreen = true,
+    this.onRetry,
+    this.retryLabel = 'Reincearca',
   });
 
   @override
@@ -73,6 +78,14 @@ class AppErrorState extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ],
+        if (onRetry != null) ...[
+          const SizedBox(height: 20),
+          AppSecondaryButton(
+            label: retryLabel,
+            icon: Icons.refresh_rounded,
+            onPressed: onRetry,
           ),
         ],
       ],
