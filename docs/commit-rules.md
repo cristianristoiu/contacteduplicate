@@ -64,5 +64,5 @@ Exemple:
 - Daca se fac teste, acestea trebuie sa insoteasca implementarea, nu sa inlocuiasca implementarea.
 - Este OBLIGATORIU ca numerotarea commiturilor sa fie consecutiva!
 - Daca exista un plan de implementare, orice modificare a numarului commitului trebuie actualizata in plan;
-- Cand un task este finalizat in `implementation-plan.md`, acesta se marcheaza prin taierea textului (strikethrough) si eliminarea prefixului `<WORK_CODE>` si a ID-ului, pastrand doar codul commitului la final intre paranteze (ex: `(JNI0001)`).
+- Cand un task este finalizat in `implementation-plan.md`, acesta se marcheaza prin taierea textului (strikethrough) si eliminarea prefixului `<WORK_CODE>` si a ID-ului, pastrand doar codul commitului la final intre paranteze (ex: `(JNI0001)`). Pentru taskurile nefinalizate, se elimina de asemenea prefixul `<WORK_CODE>` si ID-ul numeric.
 - Daca sunt corecturi pe un commit anume, acele commituri pastreaza numarul commitului insa se adauga prefixul "Corectie: ". Un exemplu de astfel de commit este `JNI0059 - Corectie: Fixare eroare afisare dashboard`, in conditiile in care commitul initial e posibil sa fi fost `JNI0059 - Implementare design dashboard`
