@@ -7,6 +7,8 @@ class AppPrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
+    this.leadingIcon,
+    this.trailingIcon,
     this.isLoading = false,
     this.isEnabled = true,
     super.key,
@@ -15,12 +17,15 @@ class AppPrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
+  final Widget? leadingIcon;
+  final Widget? trailingIcon;
   final bool isLoading;
   final bool isEnabled;
 
   @override
   Widget build(BuildContext context) {
     final canUse = onPressed != null && isEnabled;
+    final effectiveLeadingIcon = icon != null ? Icon(icon, color: Colors.white, size: 20) : leadingIcon;
 
     return Opacity(
       opacity: canUse ? 1 : 0.5,
@@ -49,23 +54,30 @@ class AppPrimaryButton extends StatelessWidget {
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : Row(
-                        key: const ValueKey<String>('content'),
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          if (icon != null) ...<Widget>[
-                            Icon(icon, color: Colors.white, size: 20),
-                            const SizedBox(width: 10),
-                          ],
-                          Text(
-                            label,
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
+                    : IconTheme.merge(
+                        data: const IconThemeData(color: Colors.white, size: 20),
+                        child: Row(
+                          key: const ValueKey<String>('content'),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            if (effectiveLeadingIcon != null) ...<Widget>[
+                              effectiveLeadingIcon,
+                              const SizedBox(width: 8),
+                            ],
+                            Text(
+                              label,
+                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ),
-                        ],
+                            if (trailingIcon != null) ...<Widget>[
+                              const SizedBox(width: 8),
+                              trailingIcon!,
+                            ],
+                          ],
+                        ),
                       ),
               ),
             ),
