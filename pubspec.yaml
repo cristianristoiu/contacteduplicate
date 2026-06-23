@@ -11,6 +11,7 @@ flutter:
   generate: false
   assets:
     - assets/brand/logo.svg
+    - assets/images/illustrations/
 
   # Fonturile sistemului raman default in MVP: Roboto pe Android si SF Pro pe iOS.
 
