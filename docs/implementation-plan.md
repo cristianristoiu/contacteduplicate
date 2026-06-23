@@ -79,7 +79,7 @@ Construirea unei aplicații mobile Android și iOS care găsește, verifică și
 - ~~<WORK_CODE>0058 - Sincronizare plan de implementare cu istoricul real Git.~~ COMPLETAT (JNI0058)
 
 ### UI Components & Layout (1002 - 1100)
-- <WORK_CODE>1002 - **Implementare `AppEmptyState`: Arhitectură și Layout de Bază.**
+- ~~<WORK_CODE>1002 - Implementare AppEmptyState: Arhitectură și Layout de Bază.~~ COMPLETAT (JNI0060)
 
 - <WORK_CODE>1003 - **Implementare `AppEmptyState`: Integrare Ilustrații Vectoriale SVG.** În acest pas, extindem widget-ul creat anterior pentru a suporta ilustrații complexe în locul iconițelor simple. Se va integra pachetul `flutter_svg` pentru randarea fișierelor din `assets/images/illustrations/`. Widget-ul va primi un parametru opțional `String? illustrationPath`. Dacă acest parametru este prezent, se va afișa `SvgPicture.asset` cu o înălțime fixă de 180dp, păstrând aspect ratio-ul original. Ilustrațiile trebuie să fie optimizate (fără metadata inutilă) și să folosească culorile din paleta brandului pentru a se integra natural. Se va implementa o logică de "fallback" care afișează iconița implicită dacă fișierul SVG nu este găsit sau dacă drumul este null. Este esențial ca ilustrația să fie plasată deasupra titlului, cu o distanță de 32dp față de acesta, oferind un impact vizual mai puternic decât o simplă iconiță. Se va testa performanța randării pe dispozitive low-end pentru a asigura un scroll fluid în paginile care ar putea conține acest widget (ex: în interiorul unor tab-uri).
 
