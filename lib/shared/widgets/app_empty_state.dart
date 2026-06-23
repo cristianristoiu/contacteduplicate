@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import 'app_primary_button.dart';
 
 class AppEmptyState extends StatelessWidget {
   final IconData? icon;
@@ -12,6 +13,8 @@ class AppEmptyState extends StatelessWidget {
   final String title;
   final String description;
   final Widget? action;
+  final AppPrimaryButton? primaryButton;
+  final bool isFullWidthButton;
 
   const AppEmptyState({
     super.key,
@@ -21,6 +24,8 @@ class AppEmptyState extends StatelessWidget {
     required this.title,
     required this.description,
     this.action,
+    this.primaryButton,
+    this.isFullWidthButton = false,
   });
 
   @override
@@ -28,6 +33,7 @@ class AppEmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final visual = _buildVisual(isDark);
+    final footer = _buildFooter();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -54,9 +60,9 @@ class AppEmptyState extends StatelessWidget {
               color: (isDark ? Colors.white : AppColors.blue900).withOpacity(0.6),
             ),
           ),
-          if (action != null) ...[
-            const SizedBox(height: 32),
-            action!,
+          if (footer != null) ...[
+            const SizedBox(height: 24),
+            footer,
           ],
         ],
       ),
@@ -95,6 +101,23 @@ class AppEmptyState extends StatelessWidget {
         color: AppColors.blue500,
       ),
     );
+  }
+
+  Widget? _buildFooter() {
+    final button = primaryButton;
+
+    if (button != null) {
+      if (isFullWidthButton) {
+        return SizedBox(
+          width: double.infinity,
+          child: button,
+        );
+      }
+
+      return button;
+    }
+
+    return action;
   }
 }
 
