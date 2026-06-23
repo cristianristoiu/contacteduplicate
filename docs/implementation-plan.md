@@ -77,6 +77,8 @@ Construirea unei aplicații mobile Android și iOS care găsește, verifică și
 - ~~Extindere completă plan implementare (1000 pași detaliați).~~ (JNI0056)
 - ~~Corectie: Reparare numerotare plan si actualizare reguli commit.~~ (JNI0057)
 - ~~Sincronizare plan de implementare cu istoricul real Git.~~ (JNI0058)
+- ~~Actualizare format taskuri finalizate in plan si reguli commit.~~ (JNI0059)
+- ~~Restaurare consecutivitate plan si detaliere task-uri pana la 1000+.~~ (JNI0059)
 
 ### UI Components & Layout (1002 - 1100)
 - ~~Implementare AppEmptyState: Arhitectură și Layout de Bază.~~ (JNI0060)
