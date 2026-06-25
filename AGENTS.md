@@ -30,6 +30,17 @@ Daca exista diferente intre cerinta curenta si documentatie, agentul opreste exe
 - Nu modifica fisiere generate, build output, fisiere locale de IDE sau fisiere din cache.
 - Nu muta structura folderelor fara motiv tehnic clar si confirmare.
 
+## Reguli de executie si calitate
+
+- Agentul nu are voie sa livreze modificari cu erori de executie evidente.
+- Agentul nu are voie sa finalizeze taskul daca observa importuri gresite, referinte lipsa, clase inexistente, functii inexistente sau conflicte evidente intre fisiere.
+- Daca rularea locala sau testele nu sunt posibile, agentul mentioneaza clar acest lucru si face verificare statica asupra fisierelor modificate.
+- Agentul nu are voie sa spuna ca aplicatia functioneaza daca nu a verificat efectiv.
+- Agentul nu are voie sa faca modificari inutile, duplicate sau paralele cu implementari existente.
+- Agentul nu creeaza fisiere noi daca poate extinde corect fisierele existente.
+- Agentul nu adauga markere, fisiere goale, fisiere temporare, documentatie artificiala sau schimbari cosmetice nesolicitate.
+- Orice modificare trebuie sa fie minima, necesara si direct legata de cerinta.
+
 ## Reguli pentru produs
 
 - Datele contactelor raman pe dispozitiv in MVP.
@@ -69,7 +80,8 @@ Un task este finalizat doar daca:
 
 - modificarea este minima si in scope;
 - fisierele relevante au fost inspectate;
-- nu exista erori evidente de sintaxa;
+- nu exista erori evidente de sintaxa sau executie;
+- nu exista modificari inutile, duplicate sau paralele cu implementari existente;
 - nu sunt introduse riscuri de privacy sau store compliance;
 - fisierele modificate sunt listate in raspunsul final;
 - commiturile efective sunt mentionate cu mesaj si SHA;
