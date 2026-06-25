@@ -1,3 +1,7 @@
+---
+apply: always
+---
+
 # Reguli Git si commit
 
 ## Sursa de adevar

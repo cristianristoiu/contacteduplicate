@@ -1,3 +1,7 @@
+---
+apply: always
+---
+
 # Reguli generale AI Assistant
 
 ## Aplicare

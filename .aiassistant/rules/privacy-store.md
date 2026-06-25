@@ -1,3 +1,7 @@
+---
+apply: always
+---
+
 # Reguli privacy si store compliance
 
 ## Principiu de baza

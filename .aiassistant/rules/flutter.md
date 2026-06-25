@@ -1,3 +1,7 @@
+---
+apply: always
+---
+
 # Reguli Flutter si Dart
 
 ## Arhitectura
