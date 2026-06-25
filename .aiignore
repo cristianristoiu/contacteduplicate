@@ -1,0 +1,56 @@
+# AI ignore pentru Contacte Duplicate
+# Scop: evita procesarea fisierelor generate, cache, build output, date locale si secrete.
+
+# Flutter / Dart
+.dart_tool/
+build/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# Android build si fisiere locale
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+
+# iOS build si fisiere locale
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/xcuserdata/
+*.xcuserstate
+*.mobileprovision
+*.p12
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs si fisiere temporare
+*.log
+*.tmp
+*.temp
+/tmp/
+temp/
+
+# Environment si secrete
+.env
+.env.*
+*.pem
+*.key
+*.cer
+*.crt
+
+# Generated code comun
+**/*.g.dart
+**/*.freezed.dart
+**/*.mocks.dart
