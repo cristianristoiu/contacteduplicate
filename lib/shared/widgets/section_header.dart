@@ -59,7 +59,7 @@ class SectionHeader extends StatelessWidget {
                 alignment: Alignment.centerRight,
               ),
               child: Text(
-                normalizedActionLabel,
+                normalizedActionLabel!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.label,
