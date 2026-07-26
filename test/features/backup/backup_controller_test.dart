@@ -33,6 +33,44 @@ void main() {
     expect(controller.latestValidatedBackup?.id, '1');
   });
 
+  test('accepta pentru fuziune doar backupul valid din ultimele 5 minute', () async {
+    final now = DateTime.utc(2026, 7, 27, 12);
+    final recent = ContactBackup(
+      id: 'recent',
+      createdAt: now.subtract(const Duration(minutes: 4)),
+      contactCount: 5,
+      accessScope: BackupAccessScope.full,
+      isValid: true,
+    );
+    final expired = ContactBackup(
+      id: 'expired',
+      createdAt: now.subtract(const Duration(minutes: 6)),
+      contactCount: 5,
+      accessScope: BackupAccessScope.full,
+      isValid: true,
+    );
+    final future = ContactBackup(
+      id: 'future',
+      createdAt: now.add(const Duration(seconds: 1)),
+      contactCount: 5,
+      accessScope: BackupAccessScope.full,
+      isValid: true,
+    );
+    final controller = BackupController(
+      _FakeBackupService(
+        listResult: <ContactBackup>[future, recent, expired],
+      ),
+      clock: () => now,
+    );
+
+    await controller.load();
+
+    expect(controller.isMergeEligible(recent), isTrue);
+    expect(controller.isMergeEligible(expired), isFalse);
+    expect(controller.isMergeEligible(future), isFalse);
+    expect(controller.latestMergeEligibleBackup?.id, 'recent');
+  });
+
   test('mapeaza refuzul permisiunii in starea dedicata', () async {
     final service = _FakeBackupService(
       createError: const ContactBackupException(
