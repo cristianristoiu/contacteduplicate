@@ -19,9 +19,7 @@ class AppRoutes {
   static const String settings = '/settings';
 
   static String duplicateDetails(String groupId) {
-    return Uri(
-      pathSegments: <String>['duplicates', groupId],
-    ).toString();
+    return '$duplicates/${Uri.encodeComponent(groupId)}';
   }
 }
 
