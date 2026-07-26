@@ -43,13 +43,13 @@ class AppBottomBar extends StatelessWidget {
       icon: Icons.people_alt_outlined,
       activeIcon: Icons.people_alt_rounded,
       label: 'Duplicate',
-      route: '/duplicates',
+      route: AppRoutes.duplicates,
     ),
     AppBottomBarItem(
       icon: Icons.backup_outlined,
       activeIcon: Icons.backup_rounded,
       label: 'Backup',
-      route: '/backup',
+      route: AppRoutes.backup,
     ),
     AppBottomBarItem(
       icon: Icons.settings_outlined,
@@ -61,6 +61,7 @@ class AppBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    assert(currentIndex >= 0 && currentIndex < items.length);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SafeArea(
