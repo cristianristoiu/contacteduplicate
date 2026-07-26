@@ -40,10 +40,10 @@ class InfoBox extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
                 child: Icon(
-                  Icons.info_outline_rounded,
+                  icon,
                   size: 22,
                   color: AppColors.blue500,
                 ),
@@ -57,18 +57,15 @@ class InfoBox extends StatelessWidget {
               ),
               if (closeCallback != null) ...<Widget>[
                 const SizedBox(width: 4),
-                Transform.translate(
-                  offset: const Offset(8, -8),
-                  child: AppIconButton(
-                    icon: Icons.close_rounded,
-                    onPressed: closeCallback,
-                    size: 40,
-                    iconSize: 18,
-                    backgroundColor: Colors.transparent,
-                    iconColor: textColor,
-                    tooltip: closeTooltip ??
-                        MaterialLocalizations.of(context).closeButtonTooltip,
-                  ),
+                AppIconButton(
+                  icon: Icons.close_rounded,
+                  onPressed: closeCallback,
+                  size: 40,
+                  iconSize: 18,
+                  backgroundColor: Colors.transparent,
+                  iconColor: textColor,
+                  tooltip: closeTooltip ??
+                      MaterialLocalizations.of(context).closeButtonTooltip,
                 ),
               ],
             ],
