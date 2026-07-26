@@ -103,7 +103,7 @@ class AppBottomSheet extends StatelessWidget {
               if (hasTitle) ...<Widget>[
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  titleText,
+                  titleText!,
                   style: AppTextStyles.h2.copyWith(
                     color: theme.colorScheme.onSurface,
                   ),
