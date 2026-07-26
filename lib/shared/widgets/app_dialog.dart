@@ -126,7 +126,7 @@ class AppDialog extends StatelessWidget {
             children: <Widget>[
               if (hasTitle) ...<Widget>[
                 Text(
-                  titleText,
+                  titleText!,
                   style: AppTextStyles.h2.copyWith(
                     color: theme.colorScheme.onSurface,
                   ),
