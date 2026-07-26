@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -258,6 +259,7 @@ class _AppTextFieldState extends State<AppTextField> {
                 MaterialLocalizations.of(context).clearButtonTooltip,
             icon: const Icon(Icons.clear_rounded),
             onPressed: () {
+              AppHaptics.selection();
               controller.clear();
               widget.onChanged?.call('');
               widget.onClear?.call();
