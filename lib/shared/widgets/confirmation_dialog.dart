@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import 'app_dialog.dart';
@@ -129,7 +130,10 @@ class _DangerConfirmationButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FilledButton(
-      onPressed: onPressed,
+      onPressed: () {
+        AppHaptics.importantAction();
+        onPressed();
+      },
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.error,
         foregroundColor: Colors.white,
