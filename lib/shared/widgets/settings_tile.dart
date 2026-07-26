@@ -47,7 +47,6 @@ class SettingsTile extends StatelessWidget {
     return Semantics(
       container: true,
       button: onTap != null,
-      enabled: onTap != null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
