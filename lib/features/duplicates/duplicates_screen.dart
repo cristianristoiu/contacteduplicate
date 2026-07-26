@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -42,7 +44,7 @@ class DuplicatesScreen extends StatelessWidget {
             primaryButton: AppPrimaryButton(
               label: 'Scaneaza din nou',
               icon: Icons.refresh_rounded,
-              onPressed: controller.scan,
+              onPressed: () => unawaited(controller.scan()),
             ),
           ),
         ScanStatus.completed => _DuplicateGroupsList(
