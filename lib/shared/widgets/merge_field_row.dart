@@ -78,7 +78,7 @@ class MergeFieldRow extends StatelessWidget {
                 final leftPanel = _MergeValuePanel(
                   label: leftLabel.trim(),
                   value: normalizedLeftValue,
-                  spans: difference.spansForLeft(
+                  spans: difference.buildSpans(
                     context,
                     normalizedLeftValue,
                   ),
@@ -86,7 +86,7 @@ class MergeFieldRow extends StatelessWidget {
                 final rightPanel = _MergeValuePanel(
                   label: rightLabel.trim(),
                   value: normalizedRightValue,
-                  spans: difference.spansForRight(
+                  spans: difference.buildSpans(
                     context,
                     normalizedRightValue,
                   ),
@@ -194,56 +194,51 @@ class _MergeValuePanel extends StatelessWidget {
 }
 
 class _TextDifference {
-  final int commonPrefixLength;
-  final int commonSuffixLength;
+  final int commonPrefixRuneCount;
+  final int commonSuffixRuneCount;
   final bool valuesMatch;
 
   const _TextDifference({
-    required this.commonPrefixLength,
-    required this.commonSuffixLength,
+    required this.commonPrefixRuneCount,
+    required this.commonSuffixRuneCount,
     required this.valuesMatch,
   });
 
   factory _TextDifference.between(String left, String right) {
+    final leftRunes = left.runes.toList(growable: false);
+    final rightRunes = right.runes.toList(growable: false);
+
     if (left == right) {
       return _TextDifference(
-        commonPrefixLength: left.length,
-        commonSuffixLength: 0,
+        commonPrefixRuneCount: leftRunes.length,
+        commonSuffixRuneCount: 0,
         valuesMatch: true,
       );
     }
 
-    final shortestLength = math.min(left.length, right.length);
+    final shortestLength = math.min(leftRunes.length, rightRunes.length);
     var prefixLength = 0;
     while (prefixLength < shortestLength &&
-        left.codeUnitAt(prefixLength) == right.codeUnitAt(prefixLength)) {
+        leftRunes[prefixLength] == rightRunes[prefixLength]) {
       prefixLength++;
     }
 
     var suffixLength = 0;
     final remainingLength = shortestLength - prefixLength;
     while (suffixLength < remainingLength &&
-        left.codeUnitAt(left.length - suffixLength - 1) ==
-            right.codeUnitAt(right.length - suffixLength - 1)) {
+        leftRunes[leftRunes.length - suffixLength - 1] ==
+            rightRunes[rightRunes.length - suffixLength - 1]) {
       suffixLength++;
     }
 
     return _TextDifference(
-      commonPrefixLength: prefixLength,
-      commonSuffixLength: suffixLength,
+      commonPrefixRuneCount: prefixLength,
+      commonSuffixRuneCount: suffixLength,
       valuesMatch: false,
     );
   }
 
-  List<InlineSpan> spansForLeft(BuildContext context, String value) {
-    return _buildSpans(context, value);
-  }
-
-  List<InlineSpan> spansForRight(BuildContext context, String value) {
-    return _buildSpans(context, value);
-  }
-
-  List<InlineSpan> _buildSpans(BuildContext context, String value) {
+  List<InlineSpan> buildSpans(BuildContext context, String value) {
     final baseStyle = AppTextStyles.bodyStrong.copyWith(
       color: Theme.of(context).colorScheme.onSurface,
     );
@@ -253,22 +248,27 @@ class _TextDifference {
       ];
     }
 
-    final differenceEnd = value.length - commonSuffixLength;
+    final runeOffsets = _RuneOffsets.from(value);
+    final differenceStart =
+        runeOffsets.codeUnitOffsetAt(commonPrefixRuneCount);
+    final differenceEnd = runeOffsets.codeUnitOffsetAt(
+      runeOffsets.runeCount - commonSuffixRuneCount,
+    );
     final spans = <InlineSpan>[];
 
-    if (commonPrefixLength > 0) {
+    if (differenceStart > 0) {
       spans.add(
         TextSpan(
-          text: value.substring(0, commonPrefixLength),
+          text: value.substring(0, differenceStart),
           style: baseStyle,
         ),
       );
     }
 
-    if (differenceEnd > commonPrefixLength) {
+    if (differenceEnd > differenceStart) {
       spans.add(
         TextSpan(
-          text: value.substring(commonPrefixLength, differenceEnd),
+          text: value.substring(differenceStart, differenceEnd),
           style: baseStyle.copyWith(
             color: AppColors.error,
             fontWeight: FontWeight.w800,
@@ -277,7 +277,7 @@ class _TextDifference {
       );
     }
 
-    if (commonSuffixLength > 0) {
+    if (differenceEnd < value.length) {
       spans.add(
         TextSpan(
           text: value.substring(differenceEnd),
@@ -287,5 +287,30 @@ class _TextDifference {
     }
 
     return spans;
+  }
+}
+
+class _RuneOffsets {
+  final List<int> _codeUnitOffsets;
+
+  const _RuneOffsets._(this._codeUnitOffsets);
+
+  factory _RuneOffsets.from(String value) {
+    final offsets = <int>[0];
+    var codeUnitOffset = 0;
+
+    for (final rune in value.runes) {
+      codeUnitOffset += rune > 0xFFFF ? 2 : 1;
+      offsets.add(codeUnitOffset);
+    }
+
+    return _RuneOffsets._(offsets);
+  }
+
+  int get runeCount => _codeUnitOffsets.length - 1;
+
+  int codeUnitOffsetAt(int runeIndex) {
+    assert(runeIndex >= 0 && runeIndex <= runeCount);
+    return _codeUnitOffsets[runeIndex];
   }
 }
