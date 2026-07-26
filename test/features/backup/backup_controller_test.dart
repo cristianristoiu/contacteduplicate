@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:contacte_duplicate/core/backup/contact_backup_service.dart';
 import 'package:contacte_duplicate/features/backup/backup_controller.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
