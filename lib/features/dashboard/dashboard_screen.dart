@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -50,7 +52,7 @@ class DashboardScreen extends StatelessWidget {
             isLoading: scanController.isScanning,
             onPressed: scanController.isScanning
                 ? null
-                : () => _startScan(context),
+                : () => unawaited(_startScan(context)),
           ),
           if (scanController.status == ScanStatus.permissionDenied) ...<Widget>[
             const SizedBox(height: 16),
@@ -150,7 +152,7 @@ class _PermissionMessage extends StatelessWidget {
             AppSecondaryButton(
               label: 'Deschide setarile',
               icon: Icons.settings_outlined,
-              onPressed: controller.openAppSettings,
+              onPressed: () => unawaited(controller.openAppSettings()),
             ),
           ],
         ],
