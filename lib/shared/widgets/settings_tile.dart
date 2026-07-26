@@ -75,7 +75,7 @@ class SettingsTile extends StatelessWidget {
                         if (hasSubtitle) ...<Widget>[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            normalizedSubtitle,
+                            normalizedSubtitle!,
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             style: AppTextStyles.body.copyWith(
