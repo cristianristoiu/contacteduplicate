@@ -115,6 +115,9 @@ class _DuplicateGroupCard extends StatelessWidget {
     }).join(' si ');
 
     return AppCard(
+      semanticLabel:
+          'Verifica grupul cu ${group.contacts.length} contacte duplicate',
+      onTap: () => context.push(AppRoutes.duplicateDetails(group.id)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -137,11 +140,13 @@ class _DuplicateGroupCard extends StatelessWidget {
                     vertical: 6,
                   ),
                   child: Text(
-                    '${group.confidenceScore}%',
+                    'Scor ${group.confidenceScore}',
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded),
             ],
           ),
           const SizedBox(height: 4),
@@ -157,7 +162,7 @@ class _DuplicateGroupCard extends StatelessWidget {
             ),
           ),
           Text(
-            'Fuziunea ramane blocata pana la implementarea backup-ului si a previzualizarii finale.',
+            'Deschide grupul pentru compararea read-only a campurilor. Fuziunea ramane blocata pana la implementarea backup-ului.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
