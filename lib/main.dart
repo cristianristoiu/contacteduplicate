@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
@@ -22,9 +24,13 @@ void main() {
           create: (_) => ScanController(NativeContactsScanService()),
         ),
         ChangeNotifierProvider<BackupController>(
-          create: (_) => BackupController(
-            EncryptedContactBackupService(),
-          ),
+          create: (_) {
+            final controller = BackupController(
+              EncryptedContactBackupService(),
+            );
+            unawaited(controller.load());
+            return controller;
+          },
         ),
       ],
       child: const ContactDuplicateApp(),
