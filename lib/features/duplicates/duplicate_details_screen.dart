@@ -10,6 +10,7 @@ import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/contact_avatar.dart';
 import '../../shared/widgets/merge_field_row.dart';
+import '../backup/backup_merge_gate.dart';
 import '../dashboard/scan_controller.dart';
 
 class DuplicateDetailsScreen extends StatelessWidget {
@@ -101,17 +102,7 @@ class DuplicateDetailsScreen extends StatelessWidget {
             ],
           ],
           const SizedBox(height: 28),
-          AppPrimaryButton(
-            label: 'Fuziunea necesita backup',
-            icon: Icons.lock_outline_rounded,
-            onPressed: null,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Fuziunea va fi activata numai dupa implementarea backup-ului validat si a previzualizarii datelor finale.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          const BackupMergeGate(),
         ],
       ),
     );
