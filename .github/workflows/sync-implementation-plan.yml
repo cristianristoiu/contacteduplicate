@@ -1,0 +1,99 @@
+name: Sincronizare temporara plan implementare
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/sync-implementation-plan.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync-plan:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preia repository-ul
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 200
+
+      - name: Verifica numerotarea globala
+        shell: bash
+        run: |
+          set -euo pipefail
+          max_code="$({ git log -200 --format='%s' || true; } | python3 -c 'import re, sys; values = [int(value) for line in sys.stdin for value in re.findall(r"\b[A-Z]{3}(\d{4,})", line)]; print(max(values) if values else -1)')"
+          test "$max_code" = "104"
+
+      - name: Marcheaza taskurile confirmate
+        shell: python
+        run: |
+          from pathlib import Path
+
+          plan_path = Path('docs/implementation-plan.md')
+          lines = plan_path.read_text(encoding='utf-8').splitlines()
+
+          tasks = (
+              ('Implementare `AppEmptyState`: Integrare Ilustrații Vectoriale SVG.', 'CHT0065'),
+              ('Implementare `AppEmptyState`: Integrare Buton de Acțiune Contextual.', 'CHT0066'),
+              ('Creare `AppErrorState`: Design și Structură Vizuală pentru Erori.', 'CHT0067'),
+              ('Creare `AppErrorState`: Implementare Logică de Reîncercare (Retry).', 'CHT0068'),
+              ('Implementare `AppBottomBar`: Arhitectură și Navigare Principală.', 'CHT0069'),
+              ('Implementare `AppBottomBar`: Stil vizual avansat și Glassmorphism.', 'CHT0070'),
+              ('Rafinare `PrimaryButton`: Implementare Stare de Încărcare (Loading).', 'CHT0071'),
+              ('Rafinare `PrimaryButton`: Implementare Stare Dezactivată (Disabled).', 'CHT0072'),
+              ('Rafinare `PrimaryButton`: Suport pentru Iconițe', 'CHT0073'),
+              ('Creare `IconButton` Personalizat: Geometrie și Dimensiuni.', 'CHT0074'),
+              ('Creare `IconButton` Personalizat: Interacțiune și Efecte Tactile.', 'CHT0075'),
+              ('Implementare Widget `SectionHeader`: Structură și Tipografie.', 'CHT0096'),
+              ('Implementare Widget `SectionHeader`: Padding și Margini Standard.', 'CHT0098'),
+              ('Creare Widget `SettingsTile`: Arhitectură Rând de Setări.', 'CHT0099'),
+              ('Creare Widget `SettingsTile`: Integrare Elemente Trailing', 'CHT0100'),
+              ('Adăugare `AppSwitch`: Personalizare și Branding.', 'CHT0101'),
+              ('Implementare Widget `AppTextField`: Design și Borduri Rotunjite.', 'CHT0102'),
+              ('Implementare Widget `AppTextField`: Logică "Clear" și Validări.', 'CHT0103'),
+          )
+
+          for marker, commit_code in tasks:
+              matches = [index for index, line in enumerate(lines) if marker in line]
+              if len(matches) != 1:
+                  raise RuntimeError(
+                      f'Markerul {marker!r} trebuie sa apara exact o data; aparitii: {len(matches)}'
+                  )
+
+              index = matches[0]
+              line = lines[index]
+              indentation = line[:len(line) - len(line.lstrip())]
+              stripped = line.lstrip()
+
+              if stripped.startswith('- ~~'):
+                  if not stripped.endswith(f'({commit_code})'):
+                      raise RuntimeError(
+                          f'Taskul {marker!r} este deja finalizat cu alt cod: {stripped}'
+                      )
+                  continue
+
+              if not stripped.startswith('- '):
+                  raise RuntimeError(f'Format neasteptat pentru taskul {marker!r}: {stripped}')
+
+              lines[index] = f'{indentation}- ~~{stripped[2:]}~~ ({commit_code})'
+
+          plan_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+      - name: Verifica si publica planul
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --exit-code --quiet docs/implementation-plan.md && {
+            echo 'Planul era deja sincronizat.'
+            exit 0
+          }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/implementation-plan.md
+          git commit -m 'CHT0104 - Corectie: Sincronizeaza planul de implementare'
+          git push origin HEAD:main
