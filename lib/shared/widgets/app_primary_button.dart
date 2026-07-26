@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_colors.dart';
 
 class AppPrimaryButton extends StatelessWidget {
@@ -43,7 +44,12 @@ class AppPrimaryButton extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
-            onTap: canUse && !isLoading ? onPressed : null,
+            onTap: canUse && !isLoading
+                ? () {
+                    AppHaptics.importantAction();
+                    onPressed?.call();
+                  }
+                : null,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: AnimatedSwitcher(
