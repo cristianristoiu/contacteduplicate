@@ -1,6 +1,8 @@
 import 'package:go_router/go_router.dart';
 
+import '../../features/backup/backup_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
+import '../../features/duplicates/duplicates_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
 
@@ -9,6 +11,8 @@ class AppRoutes {
 
   static const String splash = '/';
   static const String dashboard = '/dashboard';
+  static const String duplicates = '/duplicates';
+  static const String backup = '/backup';
   static const String settings = '/settings';
 }
 
@@ -22,6 +26,14 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.dashboard,
       builder: (context, state) => const DashboardScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.duplicates,
+      builder: (context, state) => const DuplicatesScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.backup,
+      builder: (context, state) => const BackupScreen(),
     ),
     GoRoute(
       path: AppRoutes.settings,
