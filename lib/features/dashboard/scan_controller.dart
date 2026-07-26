@@ -15,6 +15,7 @@ class ScanController extends ChangeNotifier {
 
   ScanStatus _status = ScanStatus.idle;
   ContactsScanResult? _result;
+  bool _settingsOpenFailed = false;
   bool _isDisposed = false;
 
   ScanController(this._service);
@@ -24,6 +25,8 @@ class ScanController extends ChangeNotifier {
   ContactsScanResult? get result => _result;
 
   bool get isScanning => _status == ScanStatus.scanning;
+
+  bool get settingsOpenFailed => _settingsOpenFailed;
 
   int get totalContacts => _result?.totalContacts ?? 0;
 
@@ -40,6 +43,7 @@ class ScanController extends ChangeNotifier {
       return;
     }
 
+    _settingsOpenFailed = false;
     _status = ScanStatus.scanning;
     _notifySafely();
 
@@ -59,8 +63,17 @@ class ScanController extends ChangeNotifier {
     _notifySafely();
   }
 
-  Future<void> openAppSettings() {
-    return _service.openAppSettings();
+  Future<void> openAppSettings() async {
+    _settingsOpenFailed = false;
+    try {
+      await _service.openAppSettings();
+    } on Exception {
+      if (_isDisposed) {
+        return;
+      }
+      _settingsOpenFailed = true;
+      _notifySafely();
+    }
   }
 
   void reset() {
@@ -70,6 +83,7 @@ class ScanController extends ChangeNotifier {
 
     _status = ScanStatus.idle;
     _result = null;
+    _settingsOpenFailed = false;
     _notifySafely();
   }
 
