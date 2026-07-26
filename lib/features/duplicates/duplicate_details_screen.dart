@@ -143,6 +143,8 @@ class _GroupSummary extends StatelessWidget {
       if (group.reasons.contains(DuplicateMatchReason.email))
         'email identic',
     ];
+    final reasonSummary =
+        reasons.isEmpty ? 'date identice' : reasons.join(' si ');
 
     return AppCard(
       child: Column(
@@ -176,7 +178,7 @@ class _GroupSummary extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Potrivire detectata prin ${reasons.join(' si ')}. Scorul este orientativ si nu autorizeaza automat o fuziune.',
+            'Potrivire detectata prin $reasonSummary. Scorul este orientativ si nu autorizeaza automat o fuziune.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
