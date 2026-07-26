@@ -62,6 +62,11 @@ class AppBottomSheet extends StatelessWidget {
     final hasTitle = titleText != null && titleText.isNotEmpty;
     final disableAnimations = mediaQuery.disableAnimations;
     final bottomInset = mediaQuery.viewInsets.bottom;
+    final availableHeight =
+        (mediaQuery.size.height - bottomInset).clamp(0.0, double.infinity);
+    final maxSheetHeight = isExpanded
+        ? availableHeight
+        : availableHeight * 0.9;
     final surface = AppBoxShadows.elevatedSurface(
       theme.bottomSheetTheme.backgroundColor ?? theme.colorScheme.surface,
       theme.brightness,
@@ -70,51 +75,58 @@ class AppBottomSheet extends StatelessWidget {
     final borderColor =
         theme.dividerTheme.color ?? theme.colorScheme.outlineVariant;
 
-    final sheet = Material(
-      color: surface,
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(20),
+    final sheet = ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxSheetHeight),
+      child: Material(
+        color: surface,
+        elevation: 0,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(20),
+          ),
+          side: BorderSide(color: borderColor),
         ),
-        side: BorderSide(color: borderColor),
-      ),
-      child: SafeArea(
-        top: isExpanded,
-        child: Padding(
-          padding: padding,
-          child: Column(
-            mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              ExcludeSemantics(
-                child: Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurface.withOpacity(0.28),
-                      borderRadius: BorderRadius.circular(2),
+        child: SafeArea(
+          top: isExpanded,
+          child: Padding(
+            padding: padding,
+            child: Column(
+              mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                ExcludeSemantics(
+                  child: Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.onSurface.withOpacity(0.28),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              if (hasTitle) ...<Widget>[
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  titleText!,
-                  style: AppTextStyles.h2.copyWith(
-                    color: theme.colorScheme.onSurface,
+                if (hasTitle) ...<Widget>[
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    titleText!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.h2.copyWith(
+                      color: theme.colorScheme.onSurface,
+                    ),
                   ),
-                ),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                if (isExpanded)
+                  Expanded(child: child)
+                else
+                  Flexible(
+                    child: SingleChildScrollView(child: child),
+                  ),
               ],
-              const SizedBox(height: AppSpacing.md),
-              if (isExpanded)
-                Expanded(child: child)
-              else
-                child,
-            ],
+            ),
           ),
         ),
       ),
@@ -126,12 +138,7 @@ class AppBottomSheet extends StatelessWidget {
           : const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: isExpanded
-          ? SizedBox(
-              height: mediaQuery.size.height - bottomInset,
-              child: sheet,
-            )
-          : sheet,
+      child: sheet,
     );
   }
 }
