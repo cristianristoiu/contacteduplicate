@@ -155,6 +155,15 @@ class _PermissionMessage extends StatelessWidget {
               onPressed: () => unawaited(controller.openAppSettings()),
             ),
           ],
+          if (controller.settingsOpenFailed) ...<Widget>[
+            const SizedBox(height: 12),
+            Text(
+              'Setarile nu au putut fi deschise automat. Deschide manual setarile aplicatiei si activeaza accesul la contacte.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+            ),
+          ],
         ],
       ),
     );
