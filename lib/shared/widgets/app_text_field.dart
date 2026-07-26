@@ -255,7 +255,7 @@ class _AppTextFieldState extends State<AppTextField> {
         if (canClear)
           IconButton(
             tooltip: widget.clearTooltip ??
-                MaterialLocalizations.of(context).deleteButtonTooltip,
+                MaterialLocalizations.of(context).clearButtonTooltip,
             icon: const Icon(Icons.clear_rounded),
             onPressed: () {
               controller.clear();
