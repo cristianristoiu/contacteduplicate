@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -24,9 +25,10 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final normalizedActionLabel = actionLabel?.trim();
+    final actionCallback = onActionPressed;
     final hasAction = normalizedActionLabel != null &&
         normalizedActionLabel.isNotEmpty &&
-        onActionPressed != null;
+        actionCallback != null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -62,7 +64,12 @@ class SectionHeader extends StatelessWidget {
                 Flexible(
                   flex: 2,
                   child: TextButton(
-                    onPressed: onActionPressed,
+                    onPressed: actionCallback == null
+                        ? null
+                        : () {
+                            AppHaptics.selection();
+                            actionCallback();
+                          },
                     style: TextButton.styleFrom(
                       foregroundColor:
                           isDark ? AppColors.blue500 : AppColors.blue600,
