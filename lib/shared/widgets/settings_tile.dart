@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -38,6 +39,7 @@ class SettingsTile extends StatelessWidget {
     final normalizedSubtitle = subtitle?.trim();
     final hasSubtitle =
         normalizedSubtitle != null && normalizedSubtitle.isNotEmpty;
+    final callback = onTap;
 
     final titleColor =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
@@ -46,14 +48,19 @@ class SettingsTile extends StatelessWidget {
 
     return Semantics(
       container: true,
-      button: onTap != null,
+      button: callback != null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: onTap,
+              onTap: callback == null
+                  ? null
+                  : () {
+                      AppHaptics.selection();
+                      callback();
+                    },
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: minHeight),
                 child: Padding(
