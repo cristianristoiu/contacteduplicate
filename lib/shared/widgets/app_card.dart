@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_shadows.dart';
+
 class AppCard extends StatelessWidget {
   const AppCard({
     required this.child,
@@ -20,21 +22,18 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final borderRadius = BorderRadius.circular(24);
-    final boxShadow = BoxShadow(
-      color: Colors.black.withOpacity(
-        theme.brightness == Brightness.dark ? 0.18 : 0.05,
-      ),
-      blurRadius: 18,
-      offset: const Offset(0, 12),
+    final baseSurface =
+        theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedSurface = AppBoxShadows.elevatedSurface(
+      baseSurface,
+      theme.brightness,
     );
 
     return Container(
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
-        color: isTransparent || gradient != null
-            ? null
-            : theme.cardTheme.color ?? theme.colorScheme.surface,
+        color: isTransparent || gradient != null ? null : elevatedSurface,
         gradient: isTransparent ? null : gradient,
         borderRadius: borderRadius,
         border: isTransparent
@@ -43,7 +42,9 @@ class AppCard extends StatelessWidget {
                 color: theme.dividerTheme.color ??
                     theme.colorScheme.outlineVariant,
               ),
-        boxShadow: isTransparent ? const <BoxShadow>[] : <BoxShadow>[boxShadow],
+        boxShadow: isTransparent
+            ? const <BoxShadow>[]
+            : AppBoxShadows.soft(theme.brightness),
       ),
       child: child,
     );
