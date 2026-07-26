@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_colors.dart';
 
 class AppSwitch extends StatelessWidget {
@@ -19,6 +20,7 @@ class AppSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final callback = onChanged;
     final inactiveThumbColor =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final inactiveTrackColor =
@@ -26,7 +28,12 @@ class AppSwitch extends StatelessWidget {
 
     final switchWidget = Switch.adaptive(
       value: value,
-      onChanged: onChanged,
+      onChanged: callback == null
+          ? null
+          : (newValue) {
+              AppHaptics.selection();
+              callback(newValue);
+            },
       activeColor: AppColors.blue500,
       activeTrackColor: AppColors.blue500.withOpacity(0.4),
       inactiveThumbColor: inactiveThumbColor,
