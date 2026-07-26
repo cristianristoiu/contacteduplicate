@@ -26,7 +26,7 @@ class AppEmptyState extends StatelessWidget {
     this.action,
     this.primaryButton,
     this.isFullWidthButton = false,
-  });
+  }) : assert(illustrationHeight > 0);
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +40,7 @@ class AppEmptyState extends StatelessWidget {
     final footer = _buildFooter();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32.0),
+      padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -121,7 +121,7 @@ class AppEmptyState extends StatelessWidget {
   }
 }
 
-class _EmptyStateIllustration extends StatelessWidget {
+class _EmptyStateIllustration extends StatefulWidget {
   final String path;
   final double height;
   final Widget? fallback;
@@ -133,20 +133,47 @@ class _EmptyStateIllustration extends StatelessWidget {
   });
 
   @override
+  State<_EmptyStateIllustration> createState() =>
+      _EmptyStateIllustrationState();
+}
+
+class _EmptyStateIllustrationState extends State<_EmptyStateIllustration> {
+  late Future<String> _svgContent;
+
+  @override
+  void initState() {
+    super.initState();
+    _svgContent = _loadSvg();
+  }
+
+  @override
+  void didUpdateWidget(covariant _EmptyStateIllustration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path) {
+      _svgContent = _loadSvg();
+    }
+  }
+
+  Future<String> _loadSvg() {
+    return rootBundle.loadString(widget.path);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
-      future: rootBundle.loadString(path),
+      future: _svgContent,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done ||
             snapshot.hasError ||
             snapshot.data == null) {
-          return fallback ?? SizedBox(height: height);
+          return widget.fallback ?? SizedBox(height: widget.height);
         }
 
         return SvgPicture.string(
           snapshot.data!,
-          height: height,
+          height: widget.height,
           fit: BoxFit.contain,
+          semanticsLabel: 'Ilustratie: ${widget.path}',
         );
       },
     );
