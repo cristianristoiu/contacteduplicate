@@ -12,15 +12,26 @@ enum BackupStatus {
   error,
 }
 
+typedef BackupControllerClock = DateTime Function();
+
 class BackupController extends ChangeNotifier {
+  static const Duration defaultMergeBackupMaxAge = Duration(minutes: 5);
+
   final ContactBackupService _service;
+  final BackupControllerClock _clock;
+  final Duration mergeBackupMaxAge;
 
   BackupStatus _status = BackupStatus.idle;
   List<ContactBackup> _backups = const <ContactBackup>[];
   String? _errorCode;
   bool _isDisposed = false;
 
-  BackupController(this._service);
+  BackupController(
+    this._service, {
+    BackupControllerClock? clock,
+    this.mergeBackupMaxAge = defaultMergeBackupMaxAge,
+  })  : assert(!mergeBackupMaxAge.isNegative),
+        _clock = clock ?? DateTime.now;
 
   BackupStatus get status => _status;
 
@@ -42,6 +53,24 @@ class BackupController extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  ContactBackup? get latestMergeEligibleBackup {
+    for (final backup in _backups) {
+      if (isMergeEligible(backup)) {
+        return backup;
+      }
+    }
+    return null;
+  }
+
+  bool isMergeEligible(ContactBackup backup) {
+    if (!backup.isValid) {
+      return false;
+    }
+
+    final age = _clock().toUtc().difference(backup.createdAt.toUtc());
+    return !age.isNegative && age <= mergeBackupMaxAge;
   }
 
   Future<void> load() async {
