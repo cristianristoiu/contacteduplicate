@@ -40,8 +40,8 @@ class DuplicateContactGroup {
     required this.contacts,
     required this.reasons,
     required this.confidenceScore,
-  }) : assert(contacts.length >= 2),
-       assert(confidenceScore >= 0 && confidenceScore <= 100);
+  })  : assert(contacts.length >= 2),
+        assert(confidenceScore >= 0 && confidenceScore <= 100);
 }
 
 class ContactsScanResult {
@@ -92,11 +92,13 @@ class NativeContactsScanService implements ContactsScanService {
   final ContactsPermissionRequester _requestPermission;
   final NativeContactsReader _readContacts;
   final AppSettingsOpener _openSettings;
+  final String? _defaultCountryCallingCode;
 
   NativeContactsScanService({
     ContactsPermissionRequester? requestPermission,
     NativeContactsReader? readContacts,
     AppSettingsOpener? openSettings,
+    String? defaultCountryCallingCode = '40',
   })  : _requestPermission = requestPermission ??
             (() => FlutterContacts.permissions.request(PermissionType.read)),
         _readContacts = readContacts ??
@@ -110,7 +112,9 @@ class NativeContactsScanService implements ContactsScanService {
         _openSettings = openSettings ??
             (() async {
               await FlutterContacts.permissions.openSettings();
-            });
+            }),
+        _defaultCountryCallingCode =
+            _sanitizeCountryCallingCode(defaultCountryCallingCode);
 
   @override
   Future<ContactsScanResult> scan() async {
@@ -167,7 +171,7 @@ class NativeContactsScanService implements ContactsScanService {
     final displayName = contact.displayName?.trim();
 
     return ScannedContact(
-      nativeId: contact.id ?? 'contact-${entry.key}',
+      nativeId: contact.id ?? 'temporary-contact-${entry.key}',
       displayName: displayName == null || displayName.isEmpty
           ? 'Contact fara nume'
           : displayName,
@@ -191,160 +195,157 @@ class NativeContactsScanService implements ContactsScanService {
       return const <DuplicateContactGroup>[];
     }
 
-    final disjointSet = _DisjointSet(contacts.length);
-    final phoneOwners = <String, int>{};
-    final emailOwners = <String, int>{};
+    final phoneOwners = <String, Set<int>>{};
+    final emailOwners = <String, Set<int>>{};
 
     for (var index = 0; index < contacts.length; index++) {
       final contact = contacts[index];
-      for (final phone in contact.phones) {
-        final normalized = _normalizePhone(phone);
-        if (normalized.isEmpty) {
-          continue;
-        }
-        final owner = phoneOwners[normalized];
-        if (owner == null) {
-          phoneOwners[normalized] = index;
-        } else {
-          disjointSet.union(owner, index);
+
+      for (final phone in contact.phones.map(_normalizePhone).toSet()) {
+        if (phone.isNotEmpty) {
+          phoneOwners.putIfAbsent(phone, () => <int>{}).add(index);
         }
       }
 
-      for (final email in contact.emails) {
-        final normalized = _normalizeEmail(email);
-        if (normalized.isEmpty) {
-          continue;
-        }
-        final owner = emailOwners[normalized];
-        if (owner == null) {
-          emailOwners[normalized] = index;
-        } else {
-          disjointSet.union(owner, index);
+      for (final email in contact.emails.map(_normalizeEmail).toSet()) {
+        if (email.isNotEmpty) {
+          emailOwners.putIfAbsent(email, () => <int>{}).add(index);
         }
       }
     }
 
-    final membersByRoot = <int, List<int>>{};
-    for (var index = 0; index < contacts.length; index++) {
-      final root = disjointSet.find(index);
-      membersByRoot.putIfAbsent(root, () => <int>[]).add(index);
-    }
+    final candidates = <String, _DuplicateCandidate>{};
+    _collectCandidates(
+      ownersByValue: phoneOwners,
+      reason: DuplicateMatchReason.phone,
+      candidates: candidates,
+    );
+    _collectCandidates(
+      ownersByValue: emailOwners,
+      reason: DuplicateMatchReason.email,
+      candidates: candidates,
+    );
 
-    final groups = <DuplicateContactGroup>[];
-    for (final indices in membersByRoot.values) {
-      if (indices.length < 2) {
-        continue;
-      }
-
-      final members = indices
+    final groups = candidates.values.map((candidate) {
+      final members = candidate.contactIndices
           .map((index) => contacts[index])
-          .toList(growable: false);
-      final reasons = _resolveReasons(members);
-      if (reasons.isEmpty) {
-        continue;
-      }
-
+          .toList(growable: false)
+        ..sort((left, right) {
+          final nameComparison = left.displayName.compareTo(right.displayName);
+          if (nameComparison != 0) {
+            return nameComparison;
+          }
+          return left.nativeId.compareTo(right.nativeId);
+        });
       final sortedIds = members.map((contact) => contact.nativeId).toList()
         ..sort();
-      groups.add(
-        DuplicateContactGroup(
-          id: sortedIds.join('|'),
-          contacts: members,
-          reasons: reasons,
-          confidenceScore: _confidenceFor(reasons),
-        ),
-      );
-    }
 
-    groups.sort(
-      (left, right) => right.confidenceScore.compareTo(left.confidenceScore),
-    );
+      return DuplicateContactGroup(
+        id: sortedIds.join('|'),
+        contacts: List<ScannedContact>.unmodifiable(members),
+        reasons: Set<DuplicateMatchReason>.unmodifiable(candidate.reasons),
+        confidenceScore: _confidenceFor(candidate.reasons),
+      );
+    }).toList(growable: false)
+      ..sort((left, right) {
+        final scoreComparison =
+            right.confidenceScore.compareTo(left.confidenceScore);
+        if (scoreComparison != 0) {
+          return scoreComparison;
+        }
+        final sizeComparison =
+            right.contacts.length.compareTo(left.contacts.length);
+        if (sizeComparison != 0) {
+          return sizeComparison;
+        }
+        return left.id.compareTo(right.id);
+      });
+
     return List<DuplicateContactGroup>.unmodifiable(groups);
   }
 
-  Set<DuplicateMatchReason> _resolveReasons(
-    List<ScannedContact> contacts,
-  ) {
-    final phoneCounts = <String, int>{};
-    final emailCounts = <String, int>{};
+  void _collectCandidates({
+    required Map<String, Set<int>> ownersByValue,
+    required DuplicateMatchReason reason,
+    required Map<String, _DuplicateCandidate> candidates,
+  }) {
+    for (final owners in ownersByValue.values) {
+      if (owners.length < 2) {
+        continue;
+      }
 
-    for (final contact in contacts) {
-      for (final phone in contact.phones.map(_normalizePhone).toSet()) {
-        if (phone.isNotEmpty) {
-          phoneCounts.update(phone, (count) => count + 1, ifAbsent: () => 1);
-        }
-      }
-      for (final email in contact.emails.map(_normalizeEmail).toSet()) {
-        if (email.isNotEmpty) {
-          emailCounts.update(email, (count) => count + 1, ifAbsent: () => 1);
-        }
-      }
+      final indices = owners.toList()..sort();
+      final membershipKey = indices.join(',');
+      final candidate = candidates.putIfAbsent(
+        membershipKey,
+        () => _DuplicateCandidate(indices),
+      );
+      candidate.reasons.add(reason);
     }
-
-    return <DuplicateMatchReason>{
-      if (phoneCounts.values.any((count) => count >= 2))
-        DuplicateMatchReason.phone,
-      if (emailCounts.values.any((count) => count >= 2))
-        DuplicateMatchReason.email,
-    };
   }
 
   int _confidenceFor(Set<DuplicateMatchReason> reasons) {
     if (reasons.length >= 2) {
-      return 100;
+      return 90;
     }
     if (reasons.contains(DuplicateMatchReason.phone)) {
-      return 98;
+      return 75;
     }
-    return 97;
+    return 70;
   }
 
   String _normalizePhone(String value) {
-    var normalized = value.replaceAll(RegExp(r'[^0-9+]'), '');
+    final compact = value.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (compact.isEmpty) {
+      return '';
+    }
+
+    var normalized = compact;
     if (normalized.startsWith('00')) {
       normalized = '+${normalized.substring(2)}';
     }
-    if (normalized.startsWith('0') && normalized.length >= 9) {
-      normalized = '+40${normalized.substring(1)}';
+
+    final plusCount = '+'.allMatches(normalized).length;
+    if (plusCount > 1 ||
+        (normalized.contains('+') && !normalized.startsWith('+'))) {
+      return '';
     }
+
+    final digits = normalized.replaceAll('+', '');
+    if (digits.length < 7) {
+      return '';
+    }
+
+    if (normalized.startsWith('0') &&
+        _defaultCountryCallingCode != null &&
+        normalized.length >= 9) {
+      return '+$_defaultCountryCallingCode${normalized.substring(1)}';
+    }
+
     return normalized;
   }
 
   String _normalizeEmail(String value) {
-    return value.trim().toLowerCase();
+    final normalized = value.trim().toLowerCase();
+    if (!RegExp(r'^[^@\s]+@[^@\s]+$').hasMatch(normalized)) {
+      return '';
+    }
+    return normalized;
+  }
+
+  static String? _sanitizeCountryCallingCode(String? value) {
+    if (value == null) {
+      return null;
+    }
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return digits.isEmpty ? null : digits;
   }
 }
 
-class _DisjointSet {
-  final List<int> _parent;
-  final List<int> _rank;
+class _DuplicateCandidate {
+  final List<int> contactIndices;
+  final Set<DuplicateMatchReason> reasons = <DuplicateMatchReason>{};
 
-  _DisjointSet(int size)
-      : _parent = List<int>.generate(size, (index) => index),
-        _rank = List<int>.filled(size, 0);
-
-  int find(int value) {
-    final parent = _parent[value];
-    if (parent != value) {
-      _parent[value] = find(parent);
-    }
-    return _parent[value];
-  }
-
-  void union(int left, int right) {
-    final leftRoot = find(left);
-    final rightRoot = find(right);
-    if (leftRoot == rightRoot) {
-      return;
-    }
-
-    if (_rank[leftRoot] < _rank[rightRoot]) {
-      _parent[leftRoot] = rightRoot;
-    } else if (_rank[leftRoot] > _rank[rightRoot]) {
-      _parent[rightRoot] = leftRoot;
-    } else {
-      _parent[rightRoot] = leftRoot;
-      _rank[leftRoot]++;
-    }
-  }
+  _DuplicateCandidate(List<int> contactIndices)
+      : contactIndices = List<int>.unmodifiable(contactIndices);
 }
