@@ -18,7 +18,7 @@ void main() {
       systemProtection: _FakeSystemProtection(shouldFail: true),
     );
 
-    expect(
+    await expectLater(
       service.createBackup(),
       throwsA(
         isA<ContactBackupException>().having(
@@ -28,7 +28,6 @@ void main() {
         ),
       ),
     );
-    await Future<void>.delayed(Duration.zero);
 
     expect(delegate.deletedIds, <String>['100']);
   });
