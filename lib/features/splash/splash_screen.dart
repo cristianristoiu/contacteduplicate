@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router/app_router.dart';
 import '../../core/l10n/app_localizations.dart';
+import '../../core/onboarding/onboarding_preferences.dart';
 import '../../shared/widgets/app_loading_indicator.dart';
 import '../../shared/widgets/app_logo.dart';
 
@@ -23,12 +26,19 @@ class _SplashScreenState extends State<SplashScreen>
   late final Animation<double> _contentOpacity;
   late final Animation<Offset> _contentOffset;
   late final Animation<double> _indicatorOpacity;
+  late final Future<String> _destinationFuture;
   bool _started = false;
   bool _navigationScheduled = false;
 
   @override
   void initState() {
     super.initState();
+    _destinationFuture = OnboardingPreferences().isCompleted().then(
+          (completed) => completed
+              ? AppRoutes.dashboard
+              : AppRoutes.onboarding,
+          onError: (_) => AppRoutes.onboarding,
+        );
     _animationController = AnimationController(
       vsync: this,
       duration: _sequenceDuration,
@@ -95,9 +105,18 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     _navigationScheduled = true;
+    unawaited(_navigateWhenReady());
+  }
+
+  Future<void> _navigateWhenReady() async {
+    final destination = await _destinationFuture;
+    if (!mounted) {
+      return;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.go(AppRoutes.dashboard);
+        context.go(destination);
       }
     });
   }
