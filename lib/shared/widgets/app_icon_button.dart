@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_colors.dart';
 
 enum AppIconButtonShape {
@@ -35,7 +35,8 @@ class AppIconButton extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final radius = shape == AppIconButtonShape.circle ? size / 2 : 12.0;
     final callback = onPressed;
-    final background = backgroundColor ?? (isDark ? AppColors.darkSurfaceMuted : AppColors.lightSurfaceMuted);
+    final background = backgroundColor ??
+        (isDark ? AppColors.darkSurfaceMuted : AppColors.lightSurfaceMuted);
     final foreground = iconColor ?? AppColors.blue500;
     final button = Semantics(
       button: true,
@@ -53,7 +54,7 @@ class AppIconButton extends StatelessWidget {
             onTap: callback == null
                 ? null
                 : () {
-                    HapticFeedback.selectionClick();
+                    AppHaptics.selection();
                     callback();
                   },
             child: SizedBox(
