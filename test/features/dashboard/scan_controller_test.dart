@@ -22,7 +22,7 @@ void main() {
       id: '1|2',
       contacts: <ScannedContact>[contactA, contactB],
       reasons: <DuplicateMatchReason>{DuplicateMatchReason.phone},
-      confidenceScore: 98,
+      confidenceScore: 75,
     );
     const result = ContactsScanResult(
       permissionState: ContactsPermissionState.granted,
@@ -48,8 +48,10 @@ void main() {
     await controller.scan();
 
     expect(controller.status, ScanStatus.permissionDenied);
-    expect(controller.result?.permissionState,
-        ContactsPermissionState.permanentlyDenied);
+    expect(
+      controller.result?.permissionState,
+      ContactsPermissionState.permanentlyDenied,
+    );
   });
 
   test('ignora o a doua cerere cat timp scanarea ruleaza', () async {
@@ -70,14 +72,34 @@ void main() {
     expect(service.scanCalls, 1);
     expect(controller.status, ScanStatus.completed);
   });
+
+  test('semnalizeaza esecul deschiderii setarilor sistemului', () async {
+    const result = ContactsScanResult.permissionDenied(
+      ContactsPermissionState.permanentlyDenied,
+    );
+    final controller = ScanController(
+      _FakeScanService(result, failOpenSettings: true),
+    );
+
+    await controller.scan();
+    await controller.openAppSettings();
+
+    expect(controller.status, ScanStatus.permissionDenied);
+    expect(controller.settingsOpenFailed, isTrue);
+  });
 }
 
 class _FakeScanService implements ContactsScanService {
   final ContactsScanResult result;
   final Completer<ContactsScanResult>? completer;
+  final bool failOpenSettings;
   int scanCalls = 0;
 
-  _FakeScanService(this.result, {this.completer});
+  _FakeScanService(
+    this.result, {
+    this.completer,
+    this.failOpenSettings = false,
+  });
 
   @override
   Future<ContactsScanResult> scan() {
@@ -86,5 +108,9 @@ class _FakeScanService implements ContactsScanService {
   }
 
   @override
-  Future<void> openAppSettings() async {}
+  Future<void> openAppSettings() async {
+    if (failOpenSettings) {
+      throw StateError('settings_unavailable');
+    }
+  }
 }
