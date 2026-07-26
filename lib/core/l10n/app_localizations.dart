@@ -10,15 +10,18 @@ class AppLocalizations {
     Locale('en'),
   ];
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   static AppLocalizations of(BuildContext context) {
-    final localizations = Localizations.of<AppLocalizations>(context, AppLocalizations);
+    final localizations =
+        Localizations.of<AppLocalizations>(context, AppLocalizations);
     assert(localizations != null, 'AppLocalizations missing in widget tree.');
     return localizations!;
   }
 
-  static const Map<String, Map<String, String>> _values = <String, Map<String, String>>{
+  static const Map<String, Map<String, String>> _values =
+      <String, Map<String, String>>{
     'ro': <String, String>{
       'app_title': 'Contacte Duplicate',
       'dashboard_title': 'Curata contactele duplicate',
@@ -27,6 +30,10 @@ class AppLocalizations {
       'view_duplicates': 'Vezi duplicate',
       'backup_contacts': 'Backup contacte',
       'settings': 'Setari',
+      'search_empty_title': 'Niciun rezultat gasit',
+      'search_empty_description':
+          'Verifica ortografia sau incearca alti termeni.',
+      'reset_search': 'Reseteaza cautarea',
     },
     'en': <String, String>{
       'app_title': 'Contact Duplicate',
@@ -36,22 +43,29 @@ class AppLocalizations {
       'view_duplicates': 'View duplicates',
       'backup_contacts': 'Backup contacts',
       'settings': 'Settings',
+      'search_empty_title': 'No results found',
+      'search_empty_description':
+          'Check the spelling or try different search terms.',
+      'reset_search': 'Reset search',
     },
   };
 
   String text(String key) {
-    final languageCode = _values.containsKey(locale.languageCode) ? locale.languageCode : 'ro';
+    final languageCode =
+        _values.containsKey(locale.languageCode) ? locale.languageCode : 'ro';
     return _values[languageCode]?[key] ?? _values['ro']?[key] ?? key;
   }
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
   bool isSupported(Locale locale) {
     return AppLocalizations.supportedLocales.any(
-      (supportedLocale) => supportedLocale.languageCode == locale.languageCode,
+      (supportedLocale) =>
+          supportedLocale.languageCode == locale.languageCode,
     );
   }
 
@@ -61,5 +75,8 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool shouldReload(covariant LocalizationsDelegate<AppLocalizations> old) => false;
+  bool shouldReload(
+    covariant LocalizationsDelegate<AppLocalizations> old,
+  ) =>
+      false;
 }
