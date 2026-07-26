@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../app/router/app_router.dart';
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_colors.dart';
 
 class AppBottomBarItem {
@@ -72,7 +73,8 @@ class AppBottomBar extends StatelessWidget {
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: (isDark ? AppColors.darkSurface : AppColors.lightSurface).withOpacity(0.82),
+                color: (isDark ? AppColors.darkSurface : AppColors.lightSurface)
+                    .withOpacity(0.82),
                 border: Border.all(
                   color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
                 ),
@@ -87,7 +89,8 @@ class AppBottomBar extends StatelessWidget {
               child: NavigationBar(
                 height: 64,
                 backgroundColor: Colors.transparent,
-                indicatorColor: AppColors.blue500.withOpacity(isDark ? 0.22 : 0.12),
+                indicatorColor:
+                    AppColors.blue500.withOpacity(isDark ? 0.22 : 0.12),
                 selectedIndex: currentIndex,
                 destinations: items.map((item) {
                   return NavigationDestination(
@@ -96,7 +99,10 @@ class AppBottomBar extends StatelessWidget {
                     label: item.label,
                   );
                 }).toList(growable: false),
-                onDestinationSelected: (index) => onItemSelected(items[index]),
+                onDestinationSelected: (index) {
+                  AppHaptics.selection();
+                  onItemSelected(items[index]);
+                },
               ),
             ),
           ),
