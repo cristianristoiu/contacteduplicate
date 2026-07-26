@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/platform/app_haptics.dart';
+
 class AppSecondaryButton extends StatelessWidget {
   const AppSecondaryButton({
     required this.label,
@@ -17,7 +19,12 @@ class AppSecondaryButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return OutlinedButton.icon(
-      onPressed: onPressed,
+      onPressed: onPressed == null
+          ? null
+          : () {
+              AppHaptics.selection();
+              onPressed?.call();
+            },
       icon: icon == null ? const SizedBox.shrink() : Icon(icon, size: 20),
       label: Text(label),
       style: OutlinedButton.styleFrom(
