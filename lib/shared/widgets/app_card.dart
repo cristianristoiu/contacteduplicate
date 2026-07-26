@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_shadows.dart';
 
 class AppCard extends StatelessWidget {
@@ -9,6 +10,8 @@ class AppCard extends StatelessWidget {
     this.margin,
     this.gradient,
     this.isTransparent = false,
+    this.onTap,
+    this.semanticLabel,
     super.key,
   });
 
@@ -17,6 +20,8 @@ class AppCard extends StatelessWidget {
   final EdgeInsetsGeometry? margin;
   final Gradient? gradient;
   final bool isTransparent;
+  final VoidCallback? onTap;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -28,10 +33,9 @@ class AppCard extends StatelessWidget {
       baseSurface,
       theme.brightness,
     );
-
-    return Container(
+    final callback = onTap;
+    final card = Container(
       margin: margin,
-      padding: padding,
       decoration: BoxDecoration(
         color: isTransparent || gradient != null ? null : elevatedSurface,
         gradient: isTransparent ? null : gradient,
@@ -46,7 +50,35 @@ class AppCard extends StatelessWidget {
             ? const <BoxShadow>[]
             : AppBoxShadows.soft(theme.brightness),
       ),
-      child: child,
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: callback == null
+                ? null
+                : () {
+                    AppHaptics.selection();
+                    callback();
+                  },
+            child: Padding(
+              padding: padding,
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (callback == null && semanticLabel == null) {
+      return card;
+    }
+
+    return Semantics(
+      container: true,
+      button: callback != null,
+      label: semanticLabel,
+      child: card,
     );
   }
 }
