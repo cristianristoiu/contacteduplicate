@@ -238,7 +238,7 @@ class EncryptedContactBackupService implements ContactBackupService {
       if (!await file.exists()) {
         throw const ContactBackupException('backup_not_found');
       }
-      return _readFile(file);
+      return await _readFile(file);
     } on ContactBackupException {
       rethrow;
     } on Object {
@@ -409,12 +409,16 @@ class EncryptedContactBackupService implements ContactBackupService {
   bool _isValidId(String id) => RegExp(r'^\d+$').hasMatch(id);
 
   Future<void> _deleteQuietly(File? file) async {
-    if (file != null && await file.exists()) {
-      try {
+    if (file == null) {
+      return;
+    }
+
+    try {
+      if (await file.exists()) {
         await file.delete();
-      } on Object {
-        // Curatarea best-effort nu trebuie sa ascunda eroarea principala.
       }
+    } on Object {
+      // Curatarea best-effort nu trebuie sa ascunda eroarea principala.
     }
   }
 }
