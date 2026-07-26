@@ -18,6 +18,7 @@ class DashboardScreen extends StatelessWidget {
     return AppScaffold(
       actions: <Widget>[
         IconButton(
+          tooltip: l10n.text('settings'),
           icon: const Icon(Icons.settings_outlined),
           onPressed: () => context.go(AppRoutes.settings),
         ),
@@ -40,16 +41,23 @@ class DashboardScreen extends StatelessWidget {
           AppPrimaryButton(
             label: l10n.text('scan_contacts'),
             icon: Icons.manage_search,
-            onPressed: () {},
+            onPressed: null,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Scanarea ramane dezactivata pana la integrarea accesului nativ la contacte.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
           AppSecondaryButton(
             label: l10n.text('view_duplicates'),
             icon: Icons.group_outlined,
-            onPressed: () {},
+            onPressed: () => context.go(AppRoutes.duplicates),
           ),
           const SizedBox(height: 20),
           AppCard(
+            onTap: () => context.go(AppRoutes.backup),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -86,7 +94,7 @@ class _DuplicateSummaryCard extends StatelessWidget {
               fit: StackFit.expand,
               children: <Widget>[
                 CircularProgressIndicator(
-                  value: 0.38,
+                  value: 0,
                   strokeWidth: 18,
                   backgroundColor: Theme.of(context).dividerTheme.color,
                 ),
