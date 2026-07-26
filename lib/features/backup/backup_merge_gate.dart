@@ -14,7 +14,9 @@ class BackupMergeGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<BackupController>();
-    final backup = controller.latestValidatedBackup;
+    final backup = controller.latestMergeEligibleBackup;
+    final hasStaleValidatedBackup =
+        backup == null && controller.latestValidatedBackup != null;
 
     if (controller.status == BackupStatus.loading ||
         controller.status == BackupStatus.idle) {
@@ -27,6 +29,13 @@ class BackupMergeGate extends StatelessWidget {
     }
 
     if (backup == null) {
+      final message = hasStaleValidatedBackup
+          ? 'Exista un backup valid, dar este mai vechi de 5 minute. Fuziunea necesita o copie noua a starii curente a agendei.'
+          : 'Nu exista niciun backup care a trecut verificarea de integritate. Fuziunea trebuie sa ramana blocata.';
+      final buttonLabel = hasStaleValidatedBackup
+          ? 'Creeaza backup recent'
+          : 'Creeaza backup pentru fuziune';
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -41,7 +50,7 @@ class BackupMergeGate extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Nu exista niciun backup care a trecut verificarea de integritate. Fuziunea trebuie sa ramana blocata.',
+                    message,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
@@ -50,7 +59,7 @@ class BackupMergeGate extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           AppPrimaryButton(
-            label: 'Creeaza backup pentru fuziune',
+            label: buttonLabel,
             icon: Icons.enhanced_encryption_outlined,
             onPressed: controller.isBusy
                 ? null
@@ -78,7 +87,7 @@ class BackupMergeGate extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Backup validat: ${backup.contactCount} contacte, $scopeLabel. Continutul va fi verificat din nou inainte de orice scriere in agenda.',
+                  'Backup recent si validat: ${backup.contactCount} contacte, $scopeLabel. Continutul va fi verificat din nou inainte de orice scriere in agenda.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
