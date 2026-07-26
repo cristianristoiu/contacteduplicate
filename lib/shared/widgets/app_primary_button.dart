@@ -25,14 +25,18 @@ class AppPrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canUse = onPressed != null && isEnabled;
-    final effectiveLeadingIcon = icon != null ? Icon(icon, color: Colors.white, size: 20) : leadingIcon;
+    final effectiveLeadingIcon = icon != null
+        ? Icon(icon, color: Colors.white, size: 20)
+        : leadingIcon;
 
     return Opacity(
       opacity: canUse ? 1 : 0.5,
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: canUse ? AppColors.brandGradient : null,
-          color: canUse ? null : Theme.of(context).disabledColor.withValues(alpha: 0.16),
+          color: canUse
+              ? null
+              : Theme.of(context).disabledColor.withOpacity(0.16),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Material(
@@ -51,11 +55,15 @@ class AppPrimaryButton extends StatelessWidget {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.4,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : IconTheme.merge(
-                        data: const IconThemeData(color: Colors.white, size: 20),
+                        data: const IconThemeData(
+                          color: Colors.white,
+                          size: 20,
+                        ),
                         child: Row(
                           key: const ValueKey<String>('content'),
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -67,10 +75,13 @@ class AppPrimaryButton extends StatelessWidget {
                             ],
                             Text(
                               label,
-                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                             ),
                             if (trailingIcon != null) ...<Widget>[
                               const SizedBox(width: 8),
