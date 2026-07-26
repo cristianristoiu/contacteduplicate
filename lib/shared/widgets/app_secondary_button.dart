@@ -23,13 +23,13 @@ class AppSecondaryButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: colorScheme.primary,
         minimumSize: const Size.fromHeight(52),
-        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.35)),
+        side: BorderSide(color: colorScheme.primary.withOpacity(0.35)),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
         ),
         textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }
