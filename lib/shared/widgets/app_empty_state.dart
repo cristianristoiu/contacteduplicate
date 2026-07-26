@@ -32,6 +32,10 @@ class AppEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final titleColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final descriptionColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final visual = _buildVisual(isDark);
     final footer = _buildFooter();
 
@@ -40,27 +44,23 @@ class AppEmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (visual != null) ...[
+        children: <Widget>[
+          if (visual != null) ...<Widget>[
             visual,
             const SizedBox(height: 32),
           ],
           Text(
             title,
             textAlign: TextAlign.center,
-            style: AppTextStyles.h2.copyWith(
-              color: isDark ? Colors.white : AppColors.blue900,
-            ),
+            style: AppTextStyles.h2.copyWith(color: titleColor),
           ),
           const SizedBox(height: 12),
           Text(
             description,
             textAlign: TextAlign.center,
-            style: AppTextStyles.body.copyWith(
-              color: (isDark ? Colors.white : AppColors.blue900).withOpacity(0.6),
-            ),
+            style: AppTextStyles.body.copyWith(color: descriptionColor),
           ),
-          if (footer != null) ...[
+          if (footer != null) ...<Widget>[
             const SizedBox(height: 24),
             footer,
           ],
@@ -137,7 +137,9 @@ class _EmptyStateIllustration extends StatelessWidget {
     return FutureBuilder<String>(
       future: rootBundle.loadString(path),
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done || snapshot.hasError || snapshot.data == null) {
+        if (snapshot.connectionState != ConnectionState.done ||
+            snapshot.hasError ||
+            snapshot.data == null) {
           return fallback ?? SizedBox(height: height);
         }
 
