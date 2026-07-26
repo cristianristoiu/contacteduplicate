@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/platform/app_haptics.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -41,8 +42,13 @@ class SelectionListTile extends StatelessWidget {
       theme.brightness == Brightness.dark ? 0.14 : 0.08,
     );
 
+    void changeSelection(bool newValue) {
+      AppHaptics.selection();
+      onChanged?.call(newValue);
+    }
+
     void toggle() {
-      onChanged?.call(!selected);
+      changeSelection(!selected);
     }
 
     return Semantics(
@@ -71,7 +77,7 @@ class SelectionListTile extends StatelessWidget {
                         onChanged: enabled
                             ? (isSelected) {
                                 if (isSelected != null) {
-                                  onChanged?.call(isSelected);
+                                  changeSelection(isSelected);
                                 }
                               }
                             : null,
