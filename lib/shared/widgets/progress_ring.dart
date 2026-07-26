@@ -167,7 +167,7 @@ class _ProgressRingState extends State<ProgressRing>
                       Center(
                         child: SizedBox.square(
                           dimension: math.max(
-                            0,
+                            0.0,
                             widget.size - widget.strokeWidth * 2 - 8,
                           ),
                           child: FittedBox(
