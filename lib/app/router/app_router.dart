@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/backup/backup_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
+import '../../features/duplicates/duplicate_details_screen.dart';
 import '../../features/duplicates/duplicates_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -16,6 +17,12 @@ class AppRoutes {
   static const String duplicates = '/duplicates';
   static const String backup = '/backup';
   static const String settings = '/settings';
+
+  static String duplicateDetails(String groupId) {
+    return Uri(
+      pathSegments: <String>['duplicates', groupId],
+    ).toString();
+  }
 }
 
 final GoRouter appRouter = GoRouter(
@@ -36,6 +43,12 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.duplicates,
       builder: (context, state) => const DuplicatesScreen(),
+    ),
+    GoRoute(
+      path: '${AppRoutes.duplicates}/:groupId',
+      builder: (context, state) => DuplicateDetailsScreen(
+        groupId: state.pathParameters['groupId'] ?? '',
+      ),
     ),
     GoRoute(
       path: AppRoutes.backup,
