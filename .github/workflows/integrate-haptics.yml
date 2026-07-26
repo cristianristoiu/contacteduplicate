@@ -1,0 +1,284 @@
+name: Integrare temporara feedback haptic
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/integrate-haptics.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-haptics:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preia repository-ul
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 200
+
+      - name: Verifica numerotarea globala
+        shell: bash
+        run: |
+          set -euo pipefail
+          max_code="$({ git log -200 --format='%s' || true; } | python3 -c 'import re, sys; values = [int(value) for line in sys.stdin for value in re.findall(r"\b[A-Z]{3}(\d{4,})", line)]; print(max(values) if values else -1)')"
+          test "$max_code" = "119"
+
+      - name: Integreaza feedback-ul haptic
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_one(path_value: str, old: str, new: str) -> None:
+              path = Path(path_value)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(
+                      f'Inlocuirea din {path_value} trebuie sa apara exact o data; aparitii: {count}'
+                  )
+              path.write_text(text.replace(old, new), encoding='utf-8')
+
+          haptics_path = Path('lib/core/platform/app_haptics.dart')
+          if haptics_path.exists():
+              raise RuntimeError('app_haptics.dart exista deja')
+          haptics_path.parent.mkdir(parents=True, exist_ok=True)
+          haptics_path.write_text(
+              """import 'package:flutter/services.dart';
+
+class AppHaptics {
+  const AppHaptics._();
+
+  static Future<void> importantAction() {
+    return HapticFeedback.mediumImpact();
+  }
+
+  static Future<void> selection() {
+    return HapticFeedback.lightImpact();
+  }
+}
+""",
+              encoding='utf-8',
+          )
+
+          replace_one(
+              'lib/shared/widgets/app_primary_button.dart',
+              "import '../../core/theme/app_colors.dart';",
+              "import '../../core/platform/app_haptics.dart';\nimport '../../core/theme/app_colors.dart';",
+          )
+          replace_one(
+              'lib/shared/widgets/app_primary_button.dart',
+              '            onTap: canUse && !isLoading ? onPressed : null,',
+              """            onTap: canUse && !isLoading
+                ? () {
+                    AppHaptics.importantAction();
+                    onPressed?.call();
+                  }
+                : null,""",
+          )
+
+          replace_one(
+              'lib/shared/widgets/app_secondary_button.dart',
+              "import 'package:flutter/material.dart';\n\nclass AppSecondaryButton",
+              "import 'package:flutter/material.dart';\n\nimport '../../core/platform/app_haptics.dart';\n\nclass AppSecondaryButton",
+          )
+          replace_one(
+              'lib/shared/widgets/app_secondary_button.dart',
+              '      onPressed: onPressed,',
+              """      onPressed: onPressed == null
+          ? null
+          : () {
+              AppHaptics.selection();
+              onPressed?.call();
+            },""",
+          )
+
+          replace_one(
+              'lib/shared/widgets/app_icon_button.dart',
+              "import 'package:flutter/material.dart';\nimport 'package:flutter/services.dart';\n\nimport '../../core/theme/app_colors.dart';",
+              "import 'package:flutter/material.dart';\n\nimport '../../core/platform/app_haptics.dart';\nimport '../../core/theme/app_colors.dart';",
+          )
+          replace_one(
+              'lib/shared/widgets/app_icon_button.dart',
+              '                    HapticFeedback.selectionClick();',
+              '                    AppHaptics.selection();',
+          )
+
+          replace_one(
+              'lib/shared/widgets/app_switch.dart',
+              "import '../../core/theme/app_colors.dart';",
+              "import '../../core/platform/app_haptics.dart';\nimport '../../core/theme/app_colors.dart';",
+          )
+          replace_one(
+              'lib/shared/widgets/app_switch.dart',
+              """  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;""",
+              """  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final callback = onChanged;""",
+          )
+          replace_one(
+              'lib/shared/widgets/app_switch.dart',
+              '      onChanged: onChanged,',
+              """      onChanged: callback == null
+          ? null
+          : (newValue) {
+              AppHaptics.selection();
+              callback(newValue);
+            },""",
+          )
+
+          replace_one(
+              'lib/shared/widgets/settings_tile.dart',
+              "import '../../core/theme/app_colors.dart';",
+              "import '../../core/platform/app_haptics.dart';\nimport '../../core/theme/app_colors.dart';",
+          )
+          replace_one(
+              'lib/shared/widgets/settings_tile.dart',
+              """    final hasSubtitle =
+        normalizedSubtitle != null && normalizedSubtitle.isNotEmpty;
+""",
+              """    final hasSubtitle =
+        normalizedSubtitle != null && normalizedSubtitle.isNotEmpty;
+    final callback = onTap;
+""",
+          )
+          replace_one(
+              'lib/shared/widgets/settings_tile.dart',
+              '      button: onTap != null,',
+              '      button: callback != null,',
+          )
+          replace_one(
+              'lib/shared/widgets/settings_tile.dart',
+              '              onTap: onTap,',
+              """              onTap: callback == null
+                  ? null
+                  : () {
+                      AppHaptics.selection();
+                      callback();
+                    },""",
+          )
+
+          replace_one(
+              'lib/shared/widgets/section_header.dart',
+              "import '../../core/theme/app_colors.dart';",
+              "import '../../core/platform/app_haptics.dart';\nimport '../../core/theme/app_colors.dart';",
+          )
+          replace_one(
+              'lib/shared/widgets/section_header.dart',
+              """    final normalizedActionLabel = actionLabel?.trim();
+    final hasAction = normalizedActionLabel != null &&
+        normalizedActionLabel.isNotEmpty &&
+        onActionPressed != null;""",
+              """    final normalizedActionLabel = actionLabel?.trim();
+    final actionCallback = onActionPressed;
+    final hasAction = normalizedActionLabel != null &&
+        normalizedActionLabel.isNotEmpty &&
+        actionCallback != null;""",
+          )
+          replace_one(
+              'lib/shared/widgets/section_header.dart',
+              '                    onPressed: onActionPressed,',
+              """                    onPressed: actionCallback == null
+                        ? null
+                        : () {
+                            AppHaptics.selection();
+                            actionCallback();
+                          },""",
+          )
+
+          replace_one(
+              'lib/shared/widgets/app_bottom_bar.dart',
+              "import '../../app/router/app_router.dart';\nimport '../../core/theme/app_colors.dart';",
+              "import '../../app/router/app_router.dart';\nimport '../../core/platform/app_haptics.dart';\nimport '../../core/theme/app_colors.dart';",
+          )
+          replace_one(
+              'lib/shared/widgets/app_bottom_bar.dart',
+              '                onDestinationSelected: (index) => onItemSelected(items[index]),',
+              """                onDestinationSelected: (index) {
+                  AppHaptics.selection();
+                  onItemSelected(items[index]);
+                },""",
+          )
+
+          replace_one(
+              'lib/shared/widgets/app_text_field.dart',
+              "import '../../core/theme/app_colors.dart';",
+              "import '../../core/platform/app_haptics.dart';\nimport '../../core/theme/app_colors.dart';",
+          )
+          replace_one(
+              'lib/shared/widgets/app_text_field.dart',
+              """            onPressed: () {
+              controller.clear();""",
+              """            onPressed: () {
+              AppHaptics.selection();
+              controller.clear();""",
+          )
+
+          replace_one(
+              'lib/shared/widgets/confirmation_dialog.dart',
+              "import '../../core/theme/app_colors.dart';",
+              "import '../../core/platform/app_haptics.dart';\nimport '../../core/theme/app_colors.dart';",
+          )
+          replace_one(
+              'lib/shared/widgets/confirmation_dialog.dart',
+              '      onPressed: onPressed,',
+              """      onPressed: () {
+        AppHaptics.importantAction();
+        onPressed();
+      },""",
+          )
+
+          replace_one(
+              'lib/shared/widgets/selection_list_tile.dart',
+              "import '../../core/theme/app_colors.dart';",
+              "import '../../core/platform/app_haptics.dart';\nimport '../../core/theme/app_colors.dart';",
+          )
+          replace_one(
+              'lib/shared/widgets/selection_list_tile.dart',
+              """    void toggle() {
+      onChanged?.call(!selected);
+    }""",
+              """    void changeSelection(bool newValue) {
+      AppHaptics.selection();
+      onChanged?.call(newValue);
+    }
+
+    void toggle() {
+      changeSelection(!selected);
+    }""",
+          )
+          replace_one(
+              'lib/shared/widgets/selection_list_tile.dart',
+              '                                  onChanged?.call(isSelected);',
+              '                                  changeSelection(isSelected);',
+          )
+
+          workflow_path = Path('.github/workflows/integrate-haptics.yml')
+          if not workflow_path.exists():
+              raise RuntimeError('Workflow-ul temporar lipseste')
+          workflow_path.unlink()
+
+      - name: Verifica modificarile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test -f lib/core/platform/app_haptics.dart
+          test ! -f .github/workflows/integrate-haptics.yml
+          test "$(grep -R "AppHaptics\." lib/shared/widgets | wc -l)" -ge 10
+          ! grep -R "HapticFeedback" lib/shared/widgets
+
+      - name: Publica integrarea
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/core/platform/app_haptics.dart lib/shared/widgets .github/workflows/integrate-haptics.yml
+          git commit -m 'CHT0119 - Corectie: Integreaza feedbackul haptic'
+          git push origin HEAD:main
