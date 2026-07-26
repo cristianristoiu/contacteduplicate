@@ -62,8 +62,9 @@ class AppBottomSheet extends StatelessWidget {
     final hasTitle = titleText != null && titleText.isNotEmpty;
     final disableAnimations = mediaQuery.disableAnimations;
     final bottomInset = mediaQuery.viewInsets.bottom;
-    final availableHeight =
-        (mediaQuery.size.height - bottomInset).clamp(0.0, double.infinity);
+    final availableHeight = (mediaQuery.size.height - bottomInset)
+        .clamp(0.0, double.infinity)
+        .toDouble();
     final maxSheetHeight = isExpanded
         ? availableHeight
         : availableHeight * 0.9;
