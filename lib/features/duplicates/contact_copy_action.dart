@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/contacts/contact_copy_service.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../shared/widgets/app_secondary_button.dart';
 import '../backup/backup_controller.dart';
 import 'contact_copy_controller.dart';
 import 'merge_detail_controller.dart';
@@ -21,6 +22,8 @@ class ContactCopyAction extends StatelessWidget {
     final backupController = context.watch<BackupController>();
     final mergeController = context.watch<MergeDetailController>();
     final copyController = context.watch<ContactCopyController>();
+    final currentDraft = _copyDraft(mergeController.draft);
+    final stateBelongsToCurrentDraft = copyController.matchesDraft(currentDraft);
     final backup = backupController.latestMergeEligibleBackup;
     final validation = backupController.mergeValidation;
     final validationReady = mergeController.isValid &&
@@ -29,39 +32,57 @@ class ContactCopyAction extends StatelessWidget {
         validation.isValid &&
         validation.backupId == backup.id &&
         validation.matchesSources(sourceContactIds);
+    final persistentState = stateBelongsToCurrentDraft &&
+        (copyController.status == ContactCopyControllerStatus.success ||
+            copyController.status == ContactCopyControllerStatus.rollbackFailed ||
+            copyController.status == ContactCopyControllerStatus.removing ||
+            copyController.status == ContactCopyControllerStatus.removed ||
+            copyController.status ==
+                ContactCopyControllerStatus.removalPermissionDenied ||
+            copyController.status == ContactCopyControllerStatus.removalFailed);
 
-    if (!validationReady) {
+    if (!validationReady && !persistentState) {
       return const SizedBox.shrink();
     }
 
-    final currentDraft = _copyDraft(mergeController.draft);
-    final stateBelongsToCurrentDraft = copyController.matchesDraft(currentDraft);
     final isBusyForCurrentDraft =
         copyController.isBusy && stateBelongsToCurrentDraft;
     final isBusyForAnotherDraft =
         copyController.isBusy && !stateBelongsToCurrentDraft;
+    final isRemoving = stateBelongsToCurrentDraft &&
+        copyController.status == ContactCopyControllerStatus.removing;
     final exactDraftSucceeded = stateBelongsToCurrentDraft &&
         copyController.status == ContactCopyControllerStatus.success;
     final exactDraftRequiresManualCheck = stateBelongsToCurrentDraft &&
-        copyController.status == ContactCopyControllerStatus.rollbackFailed;
-    final writeBlocked = copyController.isBusy ||
+        (copyController.status == ContactCopyControllerStatus.rollbackFailed ||
+            copyController.status ==
+                ContactCopyControllerStatus.removalPermissionDenied ||
+            copyController.status == ContactCopyControllerStatus.removalFailed);
+    final writeBlocked = !validationReady ||
+        copyController.isBusy ||
         exactDraftSucceeded ||
         exactDraftRequiresManualCheck;
 
-    final buttonLabel = isBusyForCurrentDraft
-        ? 'Se creeaza si se verifica copia'
-        : isBusyForAnotherDraft
-            ? 'Alta copie este in curs'
-            : exactDraftSucceeded
-                ? 'Copia acestui draft a fost creata'
-                : exactDraftRequiresManualCheck
-                    ? 'Verifica agenda manual'
-                    : 'Creeaza copia consolidata';
+    final buttonLabel = isRemoving
+        ? 'Se elimina copia consolidata'
+        : isBusyForCurrentDraft
+            ? 'Se creeaza si se verifica copia'
+            : isBusyForAnotherDraft
+                ? 'Alta operatie este in curs'
+                : exactDraftSucceeded
+                    ? 'Copia acestui draft a fost creata'
+                    : exactDraftRequiresManualCheck
+                        ? 'Verifica agenda manual'
+                        : !validationReady
+                            ? 'Revalideaza backupul pentru recreare'
+                            : 'Creeaza copia consolidata';
     final buttonIcon = exactDraftSucceeded
         ? Icons.verified_outlined
         : exactDraftRequiresManualCheck
             ? Icons.warning_amber_rounded
-            : Icons.person_add_alt_1_outlined;
+            : isRemoving
+                ? Icons.delete_outline_rounded
+                : Icons.person_add_alt_1_outlined;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -88,9 +109,21 @@ class ContactCopyAction extends StatelessWidget {
                   ),
         ),
         if (exactDraftSucceeded) ...<Widget>[
+          const SizedBox(height: 12),
+          AppSecondaryButton(
+            label: 'Sterge copia creata',
+            icon: Icons.delete_outline_rounded,
+            onPressed: copyController.isBusy
+                ? null
+                : () => _confirmAndRemove(
+                      context,
+                      copyController,
+                      currentDraft,
+                    ),
+          ),
           const SizedBox(height: 10),
           Text(
-            'Modifica numele sau valorile selectate numai daca doresti sa creezi un contact diferit.',
+            'Eliminarea verifica mai intai identitatea copiei. Contactele sursa nu sunt atinse.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -176,6 +209,47 @@ class ContactCopyAction extends StatelessWidget {
     _showMessage(context, _resultMessage(result));
   }
 
+  Future<void> _confirmAndRemove(
+    BuildContext context,
+    ContactCopyController copyController,
+    ContactCopyDraft expectedDraft,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Sterge copia consolidata?'),
+          content: const Text(
+            'Aplicatia va reverifica identitatea contactului creat si va sterge numai acea copie. Contactele sursa raman neschimbate.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Renunta'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: const Text('Sterge copia'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    final result = await copyController.removeCurrentCopy(expectedDraft);
+    if (!context.mounted || result == null) {
+      return;
+    }
+
+    _showMessage(context, _removalResultMessage(result));
+  }
+
   ContactCopyDraft _copyDraft(MergeDraft draft) {
     return ContactCopyDraft(
       displayName: draft.displayName,
@@ -199,6 +273,25 @@ class ContactCopyAction extends StatelessWidget {
         'Verificarea a esuat, iar copia noua a fost eliminata prin rollback.',
       ContactCopyStatus.rollbackFailed =>
         'Verificarea si rollbackul au esuat. Contactul nou poate exista in agenda si trebuie verificat manual.',
+    };
+  }
+
+  String _removalResultMessage(ContactCopyRemovalResult result) {
+    return switch (result.status) {
+      ContactCopyRemovalStatus.success =>
+        'Copia consolidata a fost stearsa si absenta ei a fost verificata.',
+      ContactCopyRemovalStatus.alreadyAbsent =>
+        'Copia consolidata nu mai exista in agenda.',
+      ContactCopyRemovalStatus.permissionDenied =>
+        'Permisiunea de scriere a fost refuzata. Copia nu a fost stearsa.',
+      ContactCopyRemovalStatus.invalidRequest =>
+        'Datele necesare pentru eliminarea copiei nu mai sunt valide.',
+      ContactCopyRemovalStatus.identityMismatch =>
+        'Contactul s-a schimbat dupa creare. Stergerea automata a fost blocata.',
+      ContactCopyRemovalStatus.deleteFailed =>
+        'Copia nu a putut fi stearsa. Verifica agenda manual.',
+      ContactCopyRemovalStatus.verificationFailed =>
+        'Sistemul nu a confirmat eliminarea copiei. Verifica agenda manual.',
     };
   }
 
@@ -271,6 +364,26 @@ class _CopyStatusCard extends StatelessWidget {
       ContactCopyControllerStatus.rollbackFailed => (
           Icons.warning_amber_rounded,
           'Rollbackul a esuat. Verifica manual agenda pentru un contact nou ramas partial.',
+          true,
+        ),
+      ContactCopyControllerStatus.removing => (
+          Icons.hourglass_top_rounded,
+          'Identitatea copiei este verificata, apoi copia va fi eliminata.',
+          false,
+        ),
+      ContactCopyControllerStatus.removed => (
+          Icons.delete_sweep_outlined,
+          'Copia consolidata a fost eliminata sau era deja absenta.',
+          false,
+        ),
+      ContactCopyControllerStatus.removalPermissionDenied => (
+          Icons.lock_outline_rounded,
+          'Permisiunea de stergere a fost refuzata. Copia poate exista inca.',
+          true,
+        ),
+      ContactCopyControllerStatus.removalFailed => (
+          Icons.warning_amber_rounded,
+          'Eliminarea nu a putut fi verificata. Verifica agenda manual.',
           true,
         ),
     };
