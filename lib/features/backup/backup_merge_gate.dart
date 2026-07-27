@@ -9,7 +9,16 @@ import '../../shared/widgets/app_primary_button.dart';
 import 'backup_controller.dart';
 
 class BackupMergeGate extends StatelessWidget {
-  const BackupMergeGate({super.key});
+  final bool previewValid;
+  final int sourceContactCount;
+  final int selectedValueCount;
+
+  const BackupMergeGate({
+    this.previewValid = false,
+    this.sourceContactCount = 0,
+    this.selectedValueCount = 0,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -95,17 +104,50 @@ class BackupMergeGate extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const AppPrimaryButton(
-          label: 'Previzualizarea fuziunii nu este inca activa',
-          icon: Icons.lock_outline_rounded,
-          onPressed: null,
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Backupul indeplineste prima conditie de siguranta. Fuziunea ramane blocata pana la implementarea selectiei campurilor si a confirmarii finale.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        if (!previewValid) ...<Widget>[
+          const AppPrimaryButton(
+            label: 'Completeaza campurile obligatorii',
+            icon: Icons.rule_rounded,
+            onPressed: null,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Backupul este pregatit, dar rezultatul final trebuie sa aiba un nume si cel putin o metoda de contact.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ] else ...<Widget>[
+          AppCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(
+                  Icons.preview_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Previzualizare valida: $sourceContactCount contacte sursa si $selectedValueCount valori de contact selectate.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          const AppPrimaryButton(
+            label: 'Executia fuziunii ramane blocata',
+            icon: Icons.lock_outline_rounded,
+            onPressed: null,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Primele doua conditii de siguranta sunt indeplinite. Scrierea in agenda va fi activata numai dupa implementarea confirmarii finale si a motorului de fuziune cu verificare post-operatie.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
       ],
     );
   }
