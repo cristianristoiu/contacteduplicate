@@ -40,6 +40,28 @@ class ContactCopyAction extends StatelessWidget {
         copyController.isBusy && stateBelongsToCurrentDraft;
     final isBusyForAnotherDraft =
         copyController.isBusy && !stateBelongsToCurrentDraft;
+    final exactDraftSucceeded = stateBelongsToCurrentDraft &&
+        copyController.status == ContactCopyControllerStatus.success;
+    final exactDraftRequiresManualCheck = stateBelongsToCurrentDraft &&
+        copyController.status == ContactCopyControllerStatus.rollbackFailed;
+    final writeBlocked = copyController.isBusy ||
+        exactDraftSucceeded ||
+        exactDraftRequiresManualCheck;
+
+    final buttonLabel = isBusyForCurrentDraft
+        ? 'Se creeaza si se verifica copia'
+        : isBusyForAnotherDraft
+            ? 'Alta copie este in curs'
+            : exactDraftSucceeded
+                ? 'Copia acestui draft a fost creata'
+                : exactDraftRequiresManualCheck
+                    ? 'Verifica agenda manual'
+                    : 'Creeaza copia consolidata';
+    final buttonIcon = exactDraftSucceeded
+        ? Icons.verified_outlined
+        : exactDraftRequiresManualCheck
+            ? Icons.warning_amber_rounded
+            : Icons.person_add_alt_1_outlined;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -52,18 +74,10 @@ class ContactCopyAction extends StatelessWidget {
         ],
         const SizedBox(height: 12),
         AppPrimaryButton(
-          label: isBusyForCurrentDraft
-              ? 'Se creeaza si se verifica copia'
-              : isBusyForAnotherDraft
-                  ? 'Alta copie este in curs'
-                  : stateBelongsToCurrentDraft &&
-                          copyController.status ==
-                              ContactCopyControllerStatus.success
-                      ? 'Creeaza alta copie consolidata'
-                      : 'Creeaza copia consolidata',
-          icon: Icons.person_add_alt_1_outlined,
+          label: buttonLabel,
+          icon: buttonIcon,
           isLoading: isBusyForCurrentDraft,
-          onPressed: copyController.isBusy
+          onPressed: writeBlocked
               ? null
               : () => _confirmAndCreate(
                     context,
@@ -73,6 +87,14 @@ class ContactCopyAction extends StatelessWidget {
                     currentDraft,
                   ),
         ),
+        if (exactDraftSucceeded) ...<Widget>[
+          const SizedBox(height: 10),
+          Text(
+            'Modifica numele sau valorile selectate numai daca doresti sa creezi un contact diferit.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
       ],
     );
   }
