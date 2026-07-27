@@ -256,7 +256,11 @@ class NativeContactCopyService implements ContactCopyService {
           status: ContactCopyRemovalStatus.alreadyAbsent,
         );
       }
-      if (!_matchesDraft(existing, normalizedDraft)) {
+      if (!_matchesDraft(
+        existing,
+        normalizedDraft,
+        requireExactValues: true,
+      )) {
         return const ContactCopyRemovalResult(
           status: ContactCopyRemovalStatus.identityMismatch,
           errorCode: 'contact_copy_identity_mismatch',
@@ -340,7 +344,11 @@ class NativeContactCopyService implements ContactCopyService {
     );
   }
 
-  bool _matchesDraft(Contact contact, ContactCopyDraft draft) {
+  bool _matchesDraft(
+    Contact contact,
+    ContactCopyDraft draft, {
+    bool requireExactValues = false,
+  }) {
     final expectedName = _normalizeName(draft.displayName);
     final displayName = contact.displayName;
     final firstName = contact.name?.first;
@@ -357,7 +365,11 @@ class NativeContactCopyService implements ContactCopyService {
         .map((phone) => _normalizePhone(phone.number))
         .where((phone) => phone.isNotEmpty)
         .toSet();
-    if (!actualPhones.containsAll(expectedPhones)) {
+    if (!_valuesMatch(
+      expectedPhones,
+      actualPhones,
+      requireExactValues: requireExactValues,
+    )) {
       return false;
     }
 
@@ -366,7 +378,20 @@ class NativeContactCopyService implements ContactCopyService {
         .map((email) => _normalizeEmail(email.address))
         .where((email) => email.isNotEmpty)
         .toSet();
-    return actualEmails.containsAll(expectedEmails);
+    return _valuesMatch(
+      expectedEmails,
+      actualEmails,
+      requireExactValues: requireExactValues,
+    );
+  }
+
+  bool _valuesMatch(
+    Set<String> expected,
+    Set<String> actual, {
+    required bool requireExactValues,
+  }) {
+    return actual.containsAll(expected) &&
+        (!requireExactValues || actual.length == expected.length);
   }
 
   String _normalizeName(String value) {
