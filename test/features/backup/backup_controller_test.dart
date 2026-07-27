@@ -71,6 +71,82 @@ void main() {
     expect(controller.latestMergeEligibleBackup?.id, 'recent');
   });
 
+  test('notifica ascultatorii cand backupul recent expira', () async {
+    var now = DateTime.utc(2026, 7, 27, 12);
+    final timers = <_ManualTimer>[];
+    final recent = ContactBackup(
+      id: 'recent',
+      createdAt: now.subtract(const Duration(minutes: 4)),
+      contactCount: 5,
+      accessScope: BackupAccessScope.full,
+      isValid: true,
+    );
+    final controller = BackupController(
+      _FakeBackupService(listResult: <ContactBackup>[recent]),
+      clock: () => now,
+      timerFactory: (duration, callback) {
+        final timer = _ManualTimer(duration, callback);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    var notifications = 0;
+    void listener() => notifications++;
+    controller.addListener(listener);
+
+    await controller.load();
+
+    expect(controller.latestMergeEligibleBackup?.id, 'recent');
+    expect(timers, hasLength(1));
+    expect(
+      timers.single.duration,
+      const Duration(minutes: 1, milliseconds: 1),
+    );
+    final notificationsAfterLoad = notifications;
+
+    now = now.add(const Duration(minutes: 1, milliseconds: 1));
+    timers.single.fire();
+
+    expect(notifications, notificationsAfterLoad + 1);
+    expect(controller.latestMergeEligibleBackup, isNull);
+    controller.removeListener(listener);
+    controller.dispose();
+  });
+
+  test('anuleaza timerul cand ultimul ascultator este eliminat', () async {
+    final now = DateTime.utc(2026, 7, 27, 12);
+    final timers = <_ManualTimer>[];
+    final controller = BackupController(
+      _FakeBackupService(
+        listResult: <ContactBackup>[
+          ContactBackup(
+            id: 'recent',
+            createdAt: now.subtract(const Duration(minutes: 1)),
+            contactCount: 5,
+            accessScope: BackupAccessScope.full,
+            isValid: true,
+          ),
+        ],
+      ),
+      clock: () => now,
+      timerFactory: (duration, callback) {
+        final timer = _ManualTimer(duration, callback);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    void listener() {}
+    controller.addListener(listener);
+    await controller.load();
+
+    expect(timers.single.isActive, isTrue);
+
+    controller.removeListener(listener);
+
+    expect(timers.single.isActive, isFalse);
+    controller.dispose();
+  });
+
   test('mapeaza refuzul permisiunii in starea dedicata', () async {
     final service = _FakeBackupService(
       createError: const ContactBackupException(
@@ -141,6 +217,37 @@ void main() {
     expect(service.deletedIds, <String>['11']);
     expect(controller.backups.map((backup) => backup.id), <String>['10']);
   });
+}
+
+class _ManualTimer implements Timer {
+  final Duration duration;
+  final void Function() _callback;
+
+  bool _isActive = true;
+  int _tick = 0;
+
+  _ManualTimer(this.duration, this._callback);
+
+  @override
+  bool get isActive => _isActive;
+
+  @override
+  int get tick => _tick;
+
+  @override
+  void cancel() {
+    _isActive = false;
+  }
+
+  void fire() {
+    if (!_isActive) {
+      return;
+    }
+
+    _isActive = false;
+    _tick++;
+    _callback();
+  }
 }
 
 class _FakeBackupService implements ContactBackupService {
