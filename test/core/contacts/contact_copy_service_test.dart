@@ -10,6 +10,14 @@ void main() {
     sourceContactIds: <String>['a', 'b'],
   );
 
+  Contact verifiedContact(String id) => Contact(
+        id: id,
+        displayName: 'Ana Popescu',
+        name: const Name(first: 'Ana Popescu'),
+        phones: const <Phone>[Phone(number: '+40712345678')],
+        emails: const <Email>[Email(address: 'ana@example.com')],
+      );
+
   test('creeaza si verifica o copie fara sa stearga sursele', () async {
     Contact? createdPayload;
     final deletedIds = <String>[];
@@ -19,13 +27,7 @@ void main() {
         createdPayload = contact;
         return 'copy-1';
       },
-      readContact: (id) async => Contact(
-        id: id,
-        displayName: 'Ana Popescu',
-        name: const Name(first: 'Ana Popescu'),
-        phones: const <Phone>[Phone(number: '+40712345678')],
-        emails: const <Email>[Email(address: 'ana@example.com')],
-      ),
+      readContact: (id) async => verifiedContact(id),
       deleteContact: (id) async => deletedIds.add(id),
     );
 
@@ -152,5 +154,94 @@ void main() {
 
     expect(result.status, ContactCopyStatus.invalidDraft);
     expect(permissionCalls, 0);
+  });
+
+  test('sterge copia numai dupa verificarea identitatii', () async {
+    Contact? stored = verifiedContact('copy-remove');
+    final deletedIds = <String>[];
+    final service = NativeContactCopyService(
+      requestPermission: () async => PermissionStatus.granted,
+      readContact: (id) async => stored,
+      deleteContact: (id) async {
+        deletedIds.add(id);
+        stored = null;
+      },
+    );
+
+    final result = await service.removeVerifiedCopy(
+      createdContactId: 'copy-remove',
+      expectedDraft: draft,
+    );
+
+    expect(result.status, ContactCopyRemovalStatus.success);
+    expect(deletedIds, <String>['copy-remove']);
+  });
+
+  test('refuza stergerea daca identitatea copiei nu mai corespunde', () async {
+    final deletedIds = <String>[];
+    final service = NativeContactCopyService(
+      requestPermission: () async => PermissionStatus.granted,
+      readContact: (id) async => Contact(
+        id: id,
+        displayName: 'Alta Persoana',
+        name: const Name(first: 'Alta Persoana'),
+        phones: const <Phone>[Phone(number: '0799999999')],
+      ),
+      deleteContact: (id) async => deletedIds.add(id),
+    );
+
+    final result = await service.removeVerifiedCopy(
+      createdContactId: 'copy-changed',
+      expectedDraft: draft,
+    );
+
+    expect(result.status, ContactCopyRemovalStatus.identityMismatch);
+    expect(deletedIds, isEmpty);
+  });
+
+  test('considera reusita eliminarea unei copii deja absente', () async {
+    final service = NativeContactCopyService(
+      requestPermission: () async => PermissionStatus.granted,
+      readContact: (id) async => null,
+    );
+
+    final result = await service.removeVerifiedCopy(
+      createdContactId: 'copy-absent',
+      expectedDraft: draft,
+    );
+
+    expect(result.status, ContactCopyRemovalStatus.alreadyAbsent);
+    expect(result.isSuccess, isTrue);
+  });
+
+  test('detecteaza daca sistemul nu a eliminat copia', () async {
+    final service = NativeContactCopyService(
+      requestPermission: () async => PermissionStatus.granted,
+      readContact: (id) async => verifiedContact(id),
+      deleteContact: (id) async {},
+    );
+
+    final result = await service.removeVerifiedCopy(
+      createdContactId: 'copy-persisted',
+      expectedDraft: draft,
+    );
+
+    expect(result.status, ContactCopyRemovalStatus.verificationFailed);
+  });
+
+  test('nu incearca eliminarea fara permisiune de scriere', () async {
+    var deleteCalls = 0;
+    final service = NativeContactCopyService(
+      requestPermission: () async => PermissionStatus.denied,
+      deleteContact: (id) async => deleteCalls++,
+    );
+
+    final result = await service.removeVerifiedCopy(
+      createdContactId: 'copy-denied',
+      expectedDraft: draft,
+    );
+
+    expect(result.status, ContactCopyRemovalStatus.permissionDenied);
+    expect(deleteCalls, 0);
   });
 }
