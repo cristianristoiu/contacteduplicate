@@ -11,6 +11,16 @@ enum ContactCopyStatus {
   rollbackFailed,
 }
 
+enum ContactCopyRemovalStatus {
+  success,
+  alreadyAbsent,
+  permissionDenied,
+  invalidRequest,
+  identityMismatch,
+  deleteFailed,
+  verificationFailed,
+}
+
 class ContactCopyDraft {
   final String displayName;
   final List<String> phones;
@@ -91,8 +101,27 @@ class ContactCopyResult {
   bool get isSuccess => status == ContactCopyStatus.success;
 }
 
+class ContactCopyRemovalResult {
+  final ContactCopyRemovalStatus status;
+  final String? errorCode;
+
+  const ContactCopyRemovalResult({
+    required this.status,
+    this.errorCode,
+  });
+
+  bool get isSuccess =>
+      status == ContactCopyRemovalStatus.success ||
+      status == ContactCopyRemovalStatus.alreadyAbsent;
+}
+
 abstract interface class ContactCopyService {
   Future<ContactCopyResult> createVerifiedCopy(ContactCopyDraft draft);
+
+  Future<ContactCopyRemovalResult> removeVerifiedCopy({
+    required String createdContactId,
+    required ContactCopyDraft expectedDraft,
+  });
 }
 
 typedef ContactCopyPermissionRequester = Future<PermissionStatus> Function();
@@ -144,8 +173,7 @@ class NativeContactCopyService implements ContactCopyService {
     String? createdContactId;
     try {
       final permission = await _requestPermission();
-      if (permission != PermissionStatus.granted &&
-          permission != PermissionStatus.limited) {
+      if (!_canWrite(permission)) {
         return const ContactCopyResult(
           status: ContactCopyStatus.permissionDenied,
           errorCode: 'contacts_write_permission_denied',
@@ -197,6 +225,66 @@ class NativeContactCopyService implements ContactCopyService {
         'contact_copy_verification_failed',
       );
     }
+  }
+
+  @override
+  Future<ContactCopyRemovalResult> removeVerifiedCopy({
+    required String createdContactId,
+    required ContactCopyDraft expectedDraft,
+  }) async {
+    final id = createdContactId.trim();
+    final normalizedDraft = _normalizeDraft(expectedDraft);
+    if (id.isEmpty || !normalizedDraft.isValid) {
+      return const ContactCopyRemovalResult(
+        status: ContactCopyRemovalStatus.invalidRequest,
+        errorCode: 'contact_copy_removal_invalid_request',
+      );
+    }
+
+    try {
+      final permission = await _requestPermission();
+      if (!_canWrite(permission)) {
+        return const ContactCopyRemovalResult(
+          status: ContactCopyRemovalStatus.permissionDenied,
+          errorCode: 'contacts_write_permission_denied',
+        );
+      }
+
+      final existing = await _readContact(id);
+      if (existing == null) {
+        return const ContactCopyRemovalResult(
+          status: ContactCopyRemovalStatus.alreadyAbsent,
+        );
+      }
+      if (!_matchesDraft(existing, normalizedDraft)) {
+        return const ContactCopyRemovalResult(
+          status: ContactCopyRemovalStatus.identityMismatch,
+          errorCode: 'contact_copy_identity_mismatch',
+        );
+      }
+
+      await _deleteContact(id);
+      final remaining = await _readContact(id);
+      if (remaining == null) {
+        return const ContactCopyRemovalResult(
+          status: ContactCopyRemovalStatus.success,
+        );
+      }
+      return const ContactCopyRemovalResult(
+        status: ContactCopyRemovalStatus.verificationFailed,
+        errorCode: 'contact_copy_removal_verification_failed',
+      );
+    } on Exception {
+      return const ContactCopyRemovalResult(
+        status: ContactCopyRemovalStatus.deleteFailed,
+        errorCode: 'contact_copy_removal_failed',
+      );
+    }
+  }
+
+  bool _canWrite(PermissionStatus permission) {
+    return permission == PermissionStatus.granted ||
+        permission == PermissionStatus.limited;
   }
 
   Future<ContactCopyResult> _rollback(
