@@ -78,6 +78,9 @@ class _DuplicateDetailsContent extends StatelessWidget {
     final mergeController = context.watch<MergeDetailController>();
     final selectedValueCount = mergeController.selectedPhones.length +
         mergeController.selectedEmails.length;
+    final sourceContactIds = group.contacts
+        .map((contact) => contact.nativeId)
+        .toList(growable: false);
 
     return AppScaffold(
       title: 'Previzualizare fuziune',
@@ -123,6 +126,7 @@ class _DuplicateDetailsContent extends StatelessWidget {
             previewValid: mergeController.isValid,
             sourceContactCount: group.contacts.length,
             selectedValueCount: selectedValueCount,
+            sourceContactIds: sourceContactIds,
           ),
         ],
       ),
