@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../core/backup/contact_backup_service.dart';
@@ -13,25 +15,44 @@ enum BackupStatus {
 }
 
 typedef BackupControllerClock = DateTime Function();
+typedef BackupControllerTimerFactory = Timer Function(
+  Duration duration,
+  void Function() callback,
+);
+
+Timer _createBackupControllerTimer(
+  Duration duration,
+  void Function() callback,
+) {
+  return Timer(duration, callback);
+}
 
 class BackupController extends ChangeNotifier {
   static const Duration defaultMergeBackupMaxAge = Duration(minutes: 5);
+  static const Duration _boundaryPrecision = Duration(milliseconds: 1);
 
   final ContactBackupService _service;
   final BackupControllerClock _clock;
+  final BackupControllerTimerFactory _timerFactory;
+  final bool _canScheduleEligibilityBoundaries;
   final Duration mergeBackupMaxAge;
 
   BackupStatus _status = BackupStatus.idle;
   List<ContactBackup> _backups = const <ContactBackup>[];
   String? _errorCode;
+  Timer? _mergeEligibilityTimer;
   bool _isDisposed = false;
 
   BackupController(
     this._service, {
     BackupControllerClock? clock,
+    BackupControllerTimerFactory? timerFactory,
     this.mergeBackupMaxAge = defaultMergeBackupMaxAge,
   })  : assert(!mergeBackupMaxAge.isNegative),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _timerFactory = timerFactory ?? _createBackupControllerTimer,
+        _canScheduleEligibilityBoundaries =
+            clock == null || timerFactory != null;
 
   BackupStatus get status => _status;
 
@@ -85,6 +106,7 @@ class BackupController extends ChangeNotifier {
     try {
       _backups = await _service.listBackups();
       _status = BackupStatus.ready;
+      _scheduleMergeEligibilityBoundary();
     } on ContactBackupException catch (error) {
       _status = BackupStatus.error;
       _errorCode = error.code;
@@ -113,6 +135,7 @@ class BackupController extends ChangeNotifier {
         ]..sort((left, right) => right.createdAt.compareTo(left.createdAt)),
       );
       _status = BackupStatus.ready;
+      _scheduleMergeEligibilityBoundary();
       _notifySafely();
       return backup;
     } on ContactBackupException catch (error) {
@@ -143,6 +166,7 @@ class BackupController extends ChangeNotifier {
         _backups.where((backup) => backup.id != id),
       );
       _status = BackupStatus.ready;
+      _scheduleMergeEligibilityBoundary();
       _notifySafely();
       return true;
     } on ContactBackupException catch (error) {
@@ -167,6 +191,77 @@ class BackupController extends ChangeNotifier {
     _notifySafely();
   }
 
+  @override
+  void addListener(VoidCallback listener) {
+    final hadListeners = hasListeners;
+    super.addListener(listener);
+    if (!hadListeners) {
+      _scheduleMergeEligibilityBoundary();
+    }
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    super.removeListener(listener);
+    if (!hasListeners) {
+      _cancelMergeEligibilityTimer();
+    }
+  }
+
+  void _scheduleMergeEligibilityBoundary() {
+    _cancelMergeEligibilityTimer();
+    if (_isDisposed ||
+        !hasListeners ||
+        !_canScheduleEligibilityBoundaries) {
+      return;
+    }
+
+    final now = _clock().toUtc();
+    DateTime? nextBoundary;
+
+    for (final backup in _backups) {
+      if (!backup.isValid) {
+        continue;
+      }
+
+      final createdAt = backup.createdAt.toUtc();
+      DateTime? boundary;
+      if (now.isBefore(createdAt)) {
+        boundary = createdAt;
+      } else {
+        final expiresAt = createdAt.add(mergeBackupMaxAge);
+        if (!now.isAfter(expiresAt)) {
+          boundary = expiresAt.add(_boundaryPrecision);
+        }
+      }
+
+      if (boundary != null &&
+          (nextBoundary == null || boundary.isBefore(nextBoundary))) {
+        nextBoundary = boundary;
+      }
+    }
+
+    if (nextBoundary == null) {
+      return;
+    }
+
+    final remaining = nextBoundary.difference(now);
+    final delay = remaining <= Duration.zero ? _boundaryPrecision : remaining;
+    _mergeEligibilityTimer = _timerFactory(delay, () {
+      _mergeEligibilityTimer = null;
+      if (_isDisposed) {
+        return;
+      }
+      _notifySafely();
+      _scheduleMergeEligibilityBoundary();
+    });
+  }
+
+  void _cancelMergeEligibilityTimer() {
+    _mergeEligibilityTimer?.cancel();
+    _mergeEligibilityTimer = null;
+  }
+
   void _notifySafely() {
     if (!_isDisposed) {
       notifyListeners();
@@ -176,6 +271,7 @@ class BackupController extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
+    _cancelMergeEligibilityTimer();
     super.dispose();
   }
 }
