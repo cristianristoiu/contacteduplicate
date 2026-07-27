@@ -14,6 +14,41 @@ enum BackupStatus {
   error,
 }
 
+enum MergeBackupValidationStatus {
+  valid,
+  noEligibleBackup,
+  sourceContactsMissing,
+  backupExpired,
+  failed,
+}
+
+@immutable
+class MergeBackupValidation {
+  final MergeBackupValidationStatus status;
+  final String? backupId;
+  final List<String> requestedSourceIds;
+  final List<String> missingSourceIds;
+  final String? errorCode;
+
+  const MergeBackupValidation({
+    required this.status,
+    required this.backupId,
+    required this.requestedSourceIds,
+    this.missingSourceIds = const <String>[],
+    this.errorCode,
+  });
+
+  bool get isValid => status == MergeBackupValidationStatus.valid;
+
+  bool matchesSources(Iterable<String> sourceIds) {
+    final normalized = sourceIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return setEquals(normalized, requestedSourceIds.toSet());
+  }
+}
+
 typedef BackupControllerClock = DateTime Function();
 typedef BackupControllerTimerFactory = Timer Function(
   Duration duration,
@@ -41,6 +76,8 @@ class BackupController extends ChangeNotifier {
   List<ContactBackup> _backups = const <ContactBackup>[];
   String? _errorCode;
   Timer? _mergeEligibilityTimer;
+  MergeBackupValidation? _mergeValidation;
+  bool _isValidatingMergeSources = false;
   bool _isDisposed = false;
 
   BackupController(
@@ -60,10 +97,15 @@ class BackupController extends ChangeNotifier {
 
   String? get errorCode => _errorCode;
 
+  MergeBackupValidation? get mergeValidation => _mergeValidation;
+
+  bool get isValidatingMergeSources => _isValidatingMergeSources;
+
   bool get isBusy =>
       _status == BackupStatus.loading ||
       _status == BackupStatus.creating ||
-      _status == BackupStatus.deleting;
+      _status == BackupStatus.deleting ||
+      _isValidatingMergeSources;
 
   bool get hasValidatedBackup => _backups.any((backup) => backup.isValid);
 
@@ -101,6 +143,7 @@ class BackupController extends ChangeNotifier {
 
     _status = BackupStatus.loading;
     _errorCode = null;
+    _mergeValidation = null;
     _notifySafely();
 
     try {
@@ -124,6 +167,7 @@ class BackupController extends ChangeNotifier {
 
     _status = BackupStatus.creating;
     _errorCode = null;
+    _mergeValidation = null;
     _notifySafely();
 
     try {
@@ -158,6 +202,7 @@ class BackupController extends ChangeNotifier {
 
     _status = BackupStatus.deleting;
     _errorCode = null;
+    _mergeValidation = null;
     _notifySafely();
 
     try {
@@ -178,6 +223,115 @@ class BackupController extends ChangeNotifier {
     }
     _notifySafely();
     return false;
+  }
+
+  Future<MergeBackupValidation> validateMergeSources(
+    Iterable<String> sourceIds,
+  ) async {
+    final requestedIds = sourceIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final sortedRequestedIds = requestedIds.toList()..sort();
+
+    if (requestedIds.isEmpty) {
+      final validation = MergeBackupValidation(
+        status: MergeBackupValidationStatus.failed,
+        backupId: null,
+        requestedSourceIds: const <String>[],
+        errorCode: 'merge_source_ids_missing',
+      );
+      _mergeValidation = validation;
+      _notifySafely();
+      return validation;
+    }
+
+    if (isBusy) {
+      final validation = MergeBackupValidation(
+        status: MergeBackupValidationStatus.failed,
+        backupId: latestMergeEligibleBackup?.id,
+        requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
+        errorCode: 'backup_operation_busy',
+      );
+      _mergeValidation = validation;
+      _notifySafely();
+      return validation;
+    }
+
+    final backup = latestMergeEligibleBackup;
+    if (backup == null) {
+      final validation = MergeBackupValidation(
+        status: MergeBackupValidationStatus.noEligibleBackup,
+        backupId: null,
+        requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
+      );
+      _mergeValidation = validation;
+      _notifySafely();
+      return validation;
+    }
+
+    _isValidatingMergeSources = true;
+    _mergeValidation = null;
+    _notifySafely();
+
+    try {
+      final data = await _service.readBackup(backup.id);
+      if (data.backup.id != backup.id || !isMergeEligible(data.backup)) {
+        final validation = MergeBackupValidation(
+          status: MergeBackupValidationStatus.backupExpired,
+          backupId: backup.id,
+          requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
+        );
+        _mergeValidation = validation;
+        return validation;
+      }
+
+      final backedUpIds = data.contacts
+          .map((contact) => contact.id?.trim())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      final missingIds = requestedIds.difference(backedUpIds).toList()..sort();
+      final validation = MergeBackupValidation(
+        status: missingIds.isEmpty
+            ? MergeBackupValidationStatus.valid
+            : MergeBackupValidationStatus.sourceContactsMissing,
+        backupId: backup.id,
+        requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
+        missingSourceIds: List<String>.unmodifiable(missingIds),
+      );
+      _mergeValidation = validation;
+      return validation;
+    } on ContactBackupException catch (error) {
+      final validation = MergeBackupValidation(
+        status: MergeBackupValidationStatus.failed,
+        backupId: backup.id,
+        requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
+        errorCode: error.code,
+      );
+      _mergeValidation = validation;
+      return validation;
+    } on Object {
+      final validation = MergeBackupValidation(
+        status: MergeBackupValidationStatus.failed,
+        backupId: backup.id,
+        requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
+        errorCode: 'merge_backup_validation_failed',
+      );
+      _mergeValidation = validation;
+      return validation;
+    } finally {
+      _isValidatingMergeSources = false;
+      _notifySafely();
+    }
+  }
+
+  void clearMergeValidation() {
+    if (_mergeValidation == null) {
+      return;
+    }
+    _mergeValidation = null;
+    _notifySafely();
   }
 
   void clearError() {
@@ -252,9 +406,24 @@ class BackupController extends ChangeNotifier {
       if (_isDisposed) {
         return;
       }
+      _invalidateExpiredMergeValidation();
       _notifySafely();
       _scheduleMergeEligibilityBoundary();
     });
+  }
+
+  void _invalidateExpiredMergeValidation() {
+    final validation = _mergeValidation;
+    if (validation == null || validation.backupId == null) {
+      return;
+    }
+    final backup = _backups.cast<ContactBackup?>().firstWhere(
+          (candidate) => candidate?.id == validation.backupId,
+          orElse: () => null,
+        );
+    if (backup == null || !isMergeEligible(backup)) {
+      _mergeValidation = null;
+    }
   }
 
   void _cancelMergeEligibilityTimer() {
