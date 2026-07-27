@@ -172,13 +172,13 @@ class BackupMergeGate extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         const AppPrimaryButton(
-          label: 'Executia fuziunii ramane blocata',
+          label: 'Stergerea surselor ramane blocata',
           icon: Icons.lock_outline_rounded,
           onPressed: null,
         ),
         const SizedBox(height: 10),
         Text(
-          'Conditiile de pregatire sunt indeplinite. Scrierea in agenda va fi activata numai dupa implementarea confirmarii finale si a motorului de fuziune cu verificare post-operatie.',
+          'Poti crea mai jos o copie consolidata non-distructiva. Fuziunea care sterge sursele va fi activata numai dupa implementarea motorului tranzactional si a restaurarii verificate.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -198,8 +198,7 @@ class BackupMergeGate extends StatelessWidget {
         'Nu mai exista un backup eligibil pentru aceasta fuziune.',
       MergeBackupValidationStatus.failed =>
         'Sursele nu au putut fi validate in backup. Reincearca verificarea.',
-      MergeBackupValidationStatus.valid =>
-        'Sursele au fost validate.',
+      MergeBackupValidationStatus.valid => 'Sursele au fost validate.',
     };
 
     return <Widget>[
