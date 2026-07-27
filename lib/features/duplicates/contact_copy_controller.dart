@@ -16,6 +16,7 @@ class ContactCopyController extends ChangeNotifier {
 
   ContactCopyControllerStatus _status = ContactCopyControllerStatus.idle;
   ContactCopyResult? _result;
+  Set<String> _lastSourceContactIds = const <String>{};
   bool _isDisposed = false;
 
   ContactCopyController(this._service);
@@ -26,11 +27,23 @@ class ContactCopyController extends ChangeNotifier {
 
   bool get isBusy => _status == ContactCopyControllerStatus.creating;
 
+  bool matchesSources(Iterable<String> sourceContactIds) {
+    final normalized = sourceContactIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return setEquals(normalized, _lastSourceContactIds);
+  }
+
   Future<ContactCopyResult?> create(ContactCopyDraft draft) async {
     if (isBusy) {
       return null;
     }
 
+    _lastSourceContactIds = draft.sourceContactIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
     _status = ContactCopyControllerStatus.creating;
     _result = null;
     _notifySafely();
@@ -64,11 +77,13 @@ class ContactCopyController extends ChangeNotifier {
   }
 
   void reset() {
-    if (isBusy || (_status == ContactCopyControllerStatus.idle && _result == null)) {
+    if (isBusy ||
+        (_status == ContactCopyControllerStatus.idle && _result == null)) {
       return;
     }
     _status = ContactCopyControllerStatus.idle;
     _result = null;
+    _lastSourceContactIds = const <String>{};
     _notifySafely();
   }
 
