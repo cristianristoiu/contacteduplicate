@@ -34,29 +34,35 @@ class ContactCopyAction extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final stateBelongsToCurrentGroup =
-        copyController.matchesSources(sourceContactIds);
+    final currentDraft = _copyDraft(mergeController.draft);
+    final stateBelongsToCurrentDraft = copyController.matchesDraft(currentDraft);
+    final isBusyForCurrentDraft =
+        copyController.isBusy && stateBelongsToCurrentDraft;
+    final isBusyForAnotherDraft =
+        copyController.isBusy && !stateBelongsToCurrentDraft;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         const SizedBox(height: 16),
         const _CopyInformationCard(),
-        if (stateBelongsToCurrentGroup) ...<Widget>[
+        if (stateBelongsToCurrentDraft) ...<Widget>[
           const SizedBox(height: 12),
           _CopyStatusCard(status: copyController.status),
         ],
         const SizedBox(height: 12),
         AppPrimaryButton(
-          label: copyController.isBusy
+          label: isBusyForCurrentDraft
               ? 'Se creeaza si se verifica copia'
-              : stateBelongsToCurrentGroup &&
-                      copyController.status ==
-                          ContactCopyControllerStatus.success
-                  ? 'Creeaza alta copie consolidata'
-                  : 'Creeaza copia consolidata',
+              : isBusyForAnotherDraft
+                  ? 'Alta copie este in curs'
+                  : stateBelongsToCurrentDraft &&
+                          copyController.status ==
+                              ContactCopyControllerStatus.success
+                      ? 'Creeaza alta copie consolidata'
+                      : 'Creeaza copia consolidata',
           icon: Icons.person_add_alt_1_outlined,
-          isLoading: copyController.isBusy,
+          isLoading: isBusyForCurrentDraft,
           onPressed: copyController.isBusy
               ? null
               : () => _confirmAndCreate(
@@ -64,6 +70,7 @@ class ContactCopyAction extends StatelessWidget {
                     backupController,
                     mergeController,
                     copyController,
+                    currentDraft,
                   ),
         ),
       ],
@@ -75,8 +82,8 @@ class ContactCopyAction extends StatelessWidget {
     BackupController backupController,
     MergeDetailController mergeController,
     ContactCopyController copyController,
+    ContactCopyDraft confirmedDraft,
   ) async {
-    final draft = mergeController.draft;
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -88,7 +95,7 @@ class ContactCopyAction extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                'Va fi creat un contact nou cu ${draft.phones.length} telefoane si ${draft.emails.length} emailuri.',
+                'Va fi creat un contact nou cu ${confirmedDraft.phones.length} telefoane si ${confirmedDraft.emails.length} emailuri.',
               ),
               const SizedBox(height: 12),
               Text(
@@ -126,31 +133,34 @@ class ContactCopyAction extends StatelessWidget {
     }
 
     final currentBackup = backupController.latestMergeEligibleBackup;
+    final currentDraft = _copyDraft(mergeController.draft);
     if (!sourceValidation.isValid ||
         currentBackup == null ||
         sourceValidation.backupId != currentBackup.id ||
-        !mergeController.isValid) {
+        !mergeController.isValid ||
+        currentDraft.fingerprint != confirmedDraft.fingerprint) {
       _showMessage(
         context,
-        'Conditiile de siguranta s-au schimbat. Revalideaza backupul si previzualizarea.',
+        'Conditiile de siguranta sau previzualizarea s-au schimbat. Revalideaza datele inainte de scriere.',
       );
       return;
     }
 
-    final currentDraft = mergeController.draft;
-    final result = await copyController.create(
-      ContactCopyDraft(
-        displayName: currentDraft.displayName,
-        phones: currentDraft.phones,
-        emails: currentDraft.emails,
-        sourceContactIds: sourceContactIds,
-      ),
-    );
+    final result = await copyController.create(currentDraft);
     if (!context.mounted || result == null) {
       return;
     }
 
     _showMessage(context, _resultMessage(result));
+  }
+
+  ContactCopyDraft _copyDraft(MergeDraft draft) {
+    return ContactCopyDraft(
+      displayName: draft.displayName,
+      phones: draft.phones,
+      emails: draft.emails,
+      sourceContactIds: sourceContactIds,
+    );
   }
 
   String _resultMessage(ContactCopyResult result) {
@@ -223,7 +233,7 @@ class _CopyStatusCard extends StatelessWidget {
         ),
       ContactCopyControllerStatus.success => (
           Icons.verified_outlined,
-          'Ultima copie pentru acest grup a fost creata si verificata.',
+          'Ultima copie pentru acest draft a fost creata si verificata.',
           false,
         ),
       ContactCopyControllerStatus.permissionDenied => (
