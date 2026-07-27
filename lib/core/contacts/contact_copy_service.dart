@@ -1,0 +1,272 @@
+import 'package:flutter_contacts/flutter_contacts.dart';
+
+enum ContactCopyStatus {
+  success,
+  permissionDenied,
+  invalidDraft,
+  createFailed,
+  verificationFailed,
+  rollbackFailed,
+}
+
+class ContactCopyDraft {
+  final String displayName;
+  final List<String> phones;
+  final List<String> emails;
+  final List<String> sourceContactIds;
+
+  const ContactCopyDraft({
+    required this.displayName,
+    required this.phones,
+    required this.emails,
+    required this.sourceContactIds,
+  });
+
+  bool get isValid {
+    return displayName.trim().isNotEmpty &&
+        (phones.any((value) => value.trim().isNotEmpty) ||
+            emails.any((value) => value.trim().isNotEmpty)) &&
+        sourceContactIds.length >= 2;
+  }
+}
+
+class ContactCopyResult {
+  final ContactCopyStatus status;
+  final String? createdContactId;
+  final String? errorCode;
+
+  const ContactCopyResult({
+    required this.status,
+    this.createdContactId,
+    this.errorCode,
+  });
+
+  bool get isSuccess => status == ContactCopyStatus.success;
+}
+
+abstract interface class ContactCopyService {
+  Future<ContactCopyResult> createVerifiedCopy(ContactCopyDraft draft);
+}
+
+typedef ContactCopyPermissionRequester = Future<PermissionStatus> Function();
+typedef ContactCreator = Future<String> Function(Contact contact);
+typedef ContactReader = Future<Contact?> Function(String id);
+typedef ContactDeleter = Future<void> Function(String id);
+
+class NativeContactCopyService implements ContactCopyService {
+  final ContactCopyPermissionRequester _requestPermission;
+  final ContactCreator _createContact;
+  final ContactReader _readContact;
+  final ContactDeleter _deleteContact;
+  final String? _defaultCountryCallingCode;
+
+  NativeContactCopyService({
+    ContactCopyPermissionRequester? requestPermission,
+    ContactCreator? createContact,
+    ContactReader? readContact,
+    ContactDeleter? deleteContact,
+    String? defaultCountryCallingCode = '40',
+  })  : _requestPermission = requestPermission ??
+            (() => FlutterContacts.permissions.request(
+                  PermissionType.readWrite,
+                )),
+        _createContact = createContact ?? FlutterContacts.create,
+        _readContact = readContact ??
+            ((id) => FlutterContacts.get(
+                  id,
+                  properties: const <ContactProperty>{
+                    ContactProperty.name,
+                    ContactProperty.phone,
+                    ContactProperty.email,
+                  },
+                )),
+        _deleteContact = deleteContact ?? FlutterContacts.delete,
+        _defaultCountryCallingCode =
+            _sanitizeCountryCallingCode(defaultCountryCallingCode);
+
+  @override
+  Future<ContactCopyResult> createVerifiedCopy(ContactCopyDraft draft) async {
+    final normalizedDraft = _normalizeDraft(draft);
+    if (!normalizedDraft.isValid) {
+      return const ContactCopyResult(
+        status: ContactCopyStatus.invalidDraft,
+        errorCode: 'contact_copy_invalid_draft',
+      );
+    }
+
+    String? createdContactId;
+    try {
+      final permission = await _requestPermission();
+      if (permission != PermissionStatus.granted &&
+          permission != PermissionStatus.limited) {
+        return const ContactCopyResult(
+          status: ContactCopyStatus.permissionDenied,
+          errorCode: 'contacts_write_permission_denied',
+        );
+      }
+
+      final contact = Contact(
+        name: Name(first: normalizedDraft.displayName),
+        phones: normalizedDraft.phones.map(Phone.new).toList(growable: false),
+        emails: normalizedDraft.emails.map(Email.new).toList(growable: false),
+      );
+      createdContactId = await _createContact(contact);
+      if (createdContactId.trim().isEmpty) {
+        return const ContactCopyResult(
+          status: ContactCopyStatus.createFailed,
+          errorCode: 'contact_copy_empty_id',
+        );
+      }
+
+      final createdContact = await _readContact(createdContactId);
+      if (createdContact != null &&
+          _matchesDraft(createdContact, normalizedDraft)) {
+        return ContactCopyResult(
+          status: ContactCopyStatus.success,
+          createdContactId: createdContactId,
+        );
+      }
+
+      return await _rollback(
+        createdContactId,
+        ContactCopyStatus.verificationFailed,
+        'contact_copy_verification_failed',
+      );
+    } on Exception {
+      if (createdContactId == null || createdContactId.trim().isEmpty) {
+        return const ContactCopyResult(
+          status: ContactCopyStatus.createFailed,
+          errorCode: 'contact_copy_create_failed',
+        );
+      }
+
+      return _rollback(
+        createdContactId,
+        ContactCopyStatus.verificationFailed,
+        'contact_copy_verification_failed',
+      );
+    }
+  }
+
+  Future<ContactCopyResult> _rollback(
+    String createdContactId,
+    ContactCopyStatus failureStatus,
+    String failureCode,
+  ) async {
+    try {
+      await _deleteContact(createdContactId);
+      return ContactCopyResult(
+        status: failureStatus,
+        errorCode: failureCode,
+      );
+    } on Exception {
+      return ContactCopyResult(
+        status: ContactCopyStatus.rollbackFailed,
+        createdContactId: createdContactId,
+        errorCode: 'contact_copy_rollback_failed',
+      );
+    }
+  }
+
+  ContactCopyDraft _normalizeDraft(ContactCopyDraft draft) {
+    final phones = <String, String>{};
+    for (final rawValue in draft.phones) {
+      final value = rawValue.trim();
+      final key = _normalizePhone(value);
+      if (key.isNotEmpty) {
+        phones.putIfAbsent(key, () => value);
+      }
+    }
+
+    final emails = <String, String>{};
+    for (final rawValue in draft.emails) {
+      final value = rawValue.trim();
+      final key = _normalizeEmail(value);
+      if (key.isNotEmpty) {
+        emails.putIfAbsent(key, () => value);
+      }
+    }
+
+    final sourceIds = draft.sourceContactIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    return ContactCopyDraft(
+      displayName: draft.displayName.trim(),
+      phones: phones.values.toList(growable: false),
+      emails: emails.values.toList(growable: false),
+      sourceContactIds: sourceIds,
+    );
+  }
+
+  bool _matchesDraft(Contact contact, ContactCopyDraft draft) {
+    final actualName = contact.displayName?.trim() ?? contact.name?.first.trim() ?? '';
+    if (actualName != draft.displayName) {
+      return false;
+    }
+
+    final expectedPhones = draft.phones.map(_normalizePhone).toSet();
+    final actualPhones = contact.phones
+        .map((phone) => _normalizePhone(phone.number))
+        .where((phone) => phone.isNotEmpty)
+        .toSet();
+    if (!actualPhones.containsAll(expectedPhones)) {
+      return false;
+    }
+
+    final expectedEmails = draft.emails.map(_normalizeEmail).toSet();
+    final actualEmails = contact.emails
+        .map((email) => _normalizeEmail(email.address))
+        .where((email) => email.isNotEmpty)
+        .toSet();
+    return actualEmails.containsAll(expectedEmails);
+  }
+
+  String _normalizePhone(String value) {
+    final compact = value.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (compact.isEmpty) {
+      return '';
+    }
+
+    var normalized = compact;
+    if (normalized.startsWith('00')) {
+      normalized = '+${normalized.substring(2)}';
+    }
+
+    final plusCount = '+'.allMatches(normalized).length;
+    if (plusCount > 1 ||
+        (normalized.contains('+') && !normalized.startsWith('+'))) {
+      return '';
+    }
+
+    final digits = normalized.replaceAll('+', '');
+    if (digits.length < 7) {
+      return '';
+    }
+
+    if (normalized.startsWith('0') &&
+        _defaultCountryCallingCode != null &&
+        normalized.length >= 9) {
+      return '+$_defaultCountryCallingCode${normalized.substring(1)}';
+    }
+    return normalized;
+  }
+
+  String _normalizeEmail(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (!RegExp(r'^[^@\s]+@[^@\s]+$').hasMatch(normalized)) {
+      return '';
+    }
+    return normalized;
+  }
+
+  static String? _sanitizeCountryCallingCode(String? value) {
+    if (value == null) {
+      return null;
+    }
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return digits.isEmpty ? null : digits;
+  }
+}
