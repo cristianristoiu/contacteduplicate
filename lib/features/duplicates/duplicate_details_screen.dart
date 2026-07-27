@@ -11,6 +11,7 @@ import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/contact_avatar.dart';
 import '../backup/backup_merge_gate.dart';
 import '../dashboard/scan_controller.dart';
+import 'contact_copy_action.dart';
 import 'merge_detail_controller.dart';
 import 'merge_preview_editor.dart';
 
@@ -128,6 +129,7 @@ class _DuplicateDetailsContent extends StatelessWidget {
             selectedValueCount: selectedValueCount,
             sourceContactIds: sourceContactIds,
           ),
+          ContactCopyAction(sourceContactIds: sourceContactIds),
         ],
       ),
     );
