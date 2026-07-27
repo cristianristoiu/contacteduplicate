@@ -48,25 +48,7 @@ class MergePreviewEditor extends StatelessWidget {
           onChanged: controller.setEmailSelected,
         ),
         const SizedBox(height: 16),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: AppSecondaryButton(
-                label: 'Pastreaza toate',
-                icon: Icons.select_all_rounded,
-                onPressed: controller.keepAllValues,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: AppSecondaryButton(
-                label: 'Reseteaza',
-                icon: Icons.restart_alt_rounded,
-                onPressed: controller.resetToSafeDefault,
-              ),
-            ),
-          ],
-        ),
+        _EditorActions(controller: controller),
         const SizedBox(height: 20),
         _LivePreview(controller: controller),
         if (!controller.isValid) ...<Widget>[
@@ -127,6 +109,49 @@ class _MasterSelection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _EditorActions extends StatelessWidget {
+  final MergeDetailController controller;
+
+  const _EditorActions({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final keepAllButton = AppSecondaryButton(
+      label: 'Pastreaza toate',
+      icon: Icons.select_all_rounded,
+      onPressed: controller.keepAllValues,
+    );
+    final resetButton = AppSecondaryButton(
+      label: 'Reseteaza',
+      icon: Icons.restart_alt_rounded,
+      onPressed: controller.resetToSafeDefault,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 420) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              keepAllButton,
+              const SizedBox(height: 12),
+              resetButton,
+            ],
+          );
+        }
+
+        return Row(
+          children: <Widget>[
+            Expanded(child: keepAllButton),
+            const SizedBox(width: 12),
+            Expanded(child: resetButton),
+          ],
+        );
+      },
     );
   }
 }
