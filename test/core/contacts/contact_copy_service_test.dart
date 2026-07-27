@@ -22,9 +22,9 @@ void main() {
       readContact: (id) async => Contact(
         id: id,
         displayName: 'Ana Popescu',
-        name: Name(first: 'Ana Popescu'),
-        phones: <Phone>[Phone('+40712345678')],
-        emails: <Email>[Email('ana@example.com')],
+        name: const Name(first: 'Ana Popescu'),
+        phones: const <Phone>[Phone(number: '+40712345678')],
+        emails: const <Email>[Email(address: 'ana@example.com')],
       ),
       deleteContact: (id) async => deletedIds.add(id),
     );
@@ -45,9 +45,9 @@ void main() {
       readContact: (id) async => Contact(
         id: id,
         displayName: 'Popescu, Ana',
-        name: Name(first: '  ANA   POPESCU  '),
-        phones: <Phone>[Phone('+40712345678')],
-        emails: <Email>[Email('ana@example.com')],
+        name: const Name(first: '  ANA   POPESCU  '),
+        phones: const <Phone>[Phone(number: '+40712345678')],
+        emails: const <Email>[Email(address: 'ana@example.com')],
       ),
     );
 
@@ -103,8 +103,8 @@ void main() {
       readContact: (id) async => Contact(
         id: id,
         displayName: 'Ana Popescu',
-        name: Name(first: 'Ana Popescu'),
-        phones: <Phone>[Phone('0700000000')],
+        name: const Name(first: 'Ana Popescu'),
+        phones: const <Phone>[Phone(number: '0700000000')],
         emails: const <Email>[],
       ),
       deleteContact: (id) async => deletedIds.add(id),
