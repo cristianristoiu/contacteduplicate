@@ -25,10 +25,15 @@ class ContactCopyDraft {
   });
 
   bool get isValid {
+    final distinctSourceCount = sourceContactIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .length;
     return displayName.trim().isNotEmpty &&
         (phones.any((value) => value.trim().isNotEmpty) ||
             emails.any((value) => value.trim().isNotEmpty)) &&
-        sourceContactIds.map((id) => id.trim()).where((id) => id.isNotEmpty).toSet().length >= 2;
+        distinctSourceCount >= 2;
   }
 
   String get fingerprint {
@@ -149,8 +154,12 @@ class NativeContactCopyService implements ContactCopyService {
 
       final contact = Contact(
         name: Name(first: normalizedDraft.displayName),
-        phones: normalizedDraft.phones.map(Phone.new).toList(growable: false),
-        emails: normalizedDraft.emails.map(Email.new).toList(growable: false),
+        phones: normalizedDraft.phones
+            .map((value) => Phone(number: value))
+            .toList(growable: false),
+        emails: normalizedDraft.emails
+            .map((value) => Email(address: value))
+            .toList(growable: false),
       );
       createdContactId = await _createContact(contact);
       if (createdContactId.trim().isEmpty) {
@@ -245,9 +254,11 @@ class NativeContactCopyService implements ContactCopyService {
 
   bool _matchesDraft(Contact contact, ContactCopyDraft draft) {
     final expectedName = _normalizeName(draft.displayName);
+    final displayName = contact.displayName;
+    final firstName = contact.name?.first;
     final actualNames = <String>{
-      if (contact.displayName != null) _normalizeName(contact.displayName!),
-      if (contact.name?.first != null) _normalizeName(contact.name!.first),
+      if (displayName != null) _normalizeName(displayName),
+      if (firstName != null) _normalizeName(firstName),
     }..removeWhere((value) => value.isEmpty);
     if (!actualNames.contains(expectedName)) {
       return false;
