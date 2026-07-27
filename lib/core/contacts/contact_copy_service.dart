@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_contacts/flutter_contacts.dart';
 
 enum ContactCopyStatus {
@@ -26,7 +28,47 @@ class ContactCopyDraft {
     return displayName.trim().isNotEmpty &&
         (phones.any((value) => value.trim().isNotEmpty) ||
             emails.any((value) => value.trim().isNotEmpty)) &&
-        sourceContactIds.length >= 2;
+        sourceContactIds.map((id) => id.trim()).where((id) => id.isNotEmpty).toSet().length >= 2;
+  }
+
+  String get fingerprint {
+    final normalizedPhones = phones
+        .map(_fingerprintPhone)
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final normalizedEmails = emails
+        .map((value) => value.trim().toLowerCase())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final normalizedSourceIds = sourceContactIds
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+
+    return jsonEncode(<String, Object>{
+      'displayName': _normalizeName(displayName),
+      'phones': normalizedPhones,
+      'emails': normalizedEmails,
+      'sourceContactIds': normalizedSourceIds,
+    });
+  }
+
+  static String _fingerprintPhone(String value) {
+    var compact = value.replaceAll(RegExp(r'\D'), '');
+    if (compact.startsWith('00')) {
+      compact = compact.substring(2);
+    }
+    return compact;
+  }
+
+  static String _normalizeName(String value) {
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
 }
 
@@ -194,7 +236,7 @@ class NativeContactCopyService implements ContactCopyService {
         .toList(growable: false);
 
     return ContactCopyDraft(
-      displayName: draft.displayName.trim(),
+      displayName: draft.displayName.trim().replaceAll(RegExp(r'\s+'), ' '),
       phones: phones.values.toList(growable: false),
       emails: emails.values.toList(growable: false),
       sourceContactIds: sourceIds,
@@ -202,8 +244,12 @@ class NativeContactCopyService implements ContactCopyService {
   }
 
   bool _matchesDraft(Contact contact, ContactCopyDraft draft) {
-    final actualName = contact.displayName?.trim() ?? contact.name?.first.trim() ?? '';
-    if (actualName != draft.displayName) {
+    final expectedName = _normalizeName(draft.displayName);
+    final actualNames = <String>{
+      if (contact.displayName != null) _normalizeName(contact.displayName!),
+      if (contact.name?.first != null) _normalizeName(contact.name!.first),
+    }..removeWhere((value) => value.isEmpty);
+    if (!actualNames.contains(expectedName)) {
       return false;
     }
 
@@ -222,6 +268,10 @@ class NativeContactCopyService implements ContactCopyService {
         .where((email) => email.isNotEmpty)
         .toSet();
     return actualEmails.containsAll(expectedEmails);
+  }
+
+  String _normalizeName(String value) {
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
   }
 
   String _normalizePhone(String value) {
