@@ -27,6 +27,56 @@ void main() {
     expect(result?.isSuccess, isTrue);
     expect(controller.status, ContactCopyControllerStatus.success);
     expect(controller.result?.createdContactId, 'copy-1');
+    expect(controller.matchesDraft(draft), isTrue);
+  });
+
+  test('nu asociaza succesul cu un draft modificat', () async {
+    final controller = ContactCopyController(
+      _FakeContactCopyService(
+        result: const ContactCopyResult(
+          status: ContactCopyStatus.success,
+          createdContactId: 'copy-1',
+        ),
+      ),
+    );
+    await controller.create(draft);
+
+    const changed = ContactCopyDraft(
+      displayName: 'Ana Maria Popescu',
+      phones: <String>['0712345678'],
+      emails: <String>['ana@example.com'],
+      sourceContactIds: <String>['a', 'b'],
+    );
+
+    expect(controller.matchesSources(changed.sourceContactIds), isTrue);
+    expect(controller.matchesDraft(changed), isFalse);
+  });
+
+  test('accepta acelasi draft cu valori ordonate diferit', () async {
+    final controller = ContactCopyController(
+      _FakeContactCopyService(
+        result: const ContactCopyResult(
+          status: ContactCopyStatus.success,
+          createdContactId: 'copy-1',
+        ),
+      ),
+    );
+    const multipleValues = ContactCopyDraft(
+      displayName: 'Ana Popescu',
+      phones: <String>['0712345678', '0722333444'],
+      emails: <String>['ana@example.com', 'office@example.com'],
+      sourceContactIds: <String>['a', 'b'],
+    );
+    await controller.create(multipleValues);
+
+    const reordered = ContactCopyDraft(
+      displayName: 'Ana Popescu',
+      phones: <String>['0722333444', '0712345678'],
+      emails: <String>['office@example.com', 'ana@example.com'],
+      sourceContactIds: <String>['b', 'a'],
+    );
+
+    expect(controller.matchesDraft(reordered), isTrue);
   });
 
   test('ignora o a doua creare cat timp prima ruleaza', () async {
@@ -43,10 +93,12 @@ void main() {
       ),
     );
 
-    final results = await Future.wait<ContactCopyResult?>(<Future<ContactCopyResult?>>[
-      first,
-      second,
-    ]);
+    final results = await Future.wait<ContactCopyResult?>(
+      <Future<ContactCopyResult?>>[
+        first,
+        second,
+      ],
+    );
 
     expect(service.calls, 1);
     expect(results.first?.createdContactId, 'copy-2');
@@ -89,6 +141,7 @@ void main() {
 
     expect(controller.status, ContactCopyControllerStatus.idle);
     expect(controller.result, isNull);
+    expect(controller.matchesDraft(draft), isFalse);
   });
 }
 
