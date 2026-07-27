@@ -22,7 +22,7 @@ void main() {
       readContact: (id) async => Contact(
         id: id,
         displayName: 'Ana Popescu',
-        name: const Name(first: 'Ana Popescu'),
+        name: Name(first: 'Ana Popescu'),
         phones: <Phone>[Phone('+40712345678')],
         emails: <Email>[Email('ana@example.com')],
       ),
@@ -36,6 +36,47 @@ void main() {
     expect(createdPayload?.phones, hasLength(1));
     expect(createdPayload?.emails, hasLength(1));
     expect(deletedIds, isEmpty);
+  });
+
+  test('accepta numele nativ chiar daca displayName este reformatat', () async {
+    final service = NativeContactCopyService(
+      requestPermission: () async => PermissionStatus.granted,
+      createContact: (contact) async => 'copy-name',
+      readContact: (id) async => Contact(
+        id: id,
+        displayName: 'Popescu, Ana',
+        name: Name(first: '  ANA   POPESCU  '),
+        phones: <Phone>[Phone('+40712345678')],
+        emails: <Email>[Email('ana@example.com')],
+      ),
+    );
+
+    final result = await service.createVerifiedCopy(draft);
+
+    expect(result.status, ContactCopyStatus.success);
+    expect(result.createdContactId, 'copy-name');
+  });
+
+  test('genereaza aceeasi amprenta pentru ordini si formate echivalente', () {
+    const equivalent = ContactCopyDraft(
+      displayName: 'Ana  Popescu',
+      phones: <String>['0040712345678', '0712-345-678'],
+      emails: <String>['ana@example.com'],
+      sourceContactIds: <String>['b', 'a'],
+    );
+
+    expect(equivalent.fingerprint, draft.fingerprint);
+  });
+
+  test('schimbarea unei valori modifica amprenta draftului', () {
+    const changed = ContactCopyDraft(
+      displayName: 'Ana Popescu',
+      phones: <String>['0799999999'],
+      emails: <String>['ana@example.com'],
+      sourceContactIds: <String>['a', 'b'],
+    );
+
+    expect(changed.fingerprint, isNot(draft.fingerprint));
   });
 
   test('nu incearca scrierea cand permisiunea este refuzata', () async {
@@ -62,7 +103,7 @@ void main() {
       readContact: (id) async => Contact(
         id: id,
         displayName: 'Ana Popescu',
-        name: const Name(first: 'Ana Popescu'),
+        name: Name(first: 'Ana Popescu'),
         phones: <Phone>[Phone('0700000000')],
         emails: const <Email>[],
       ),
