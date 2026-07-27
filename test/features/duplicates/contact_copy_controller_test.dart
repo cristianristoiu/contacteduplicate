@@ -81,7 +81,7 @@ void main() {
 
   test('ignora o a doua creare cat timp prima ruleaza', () async {
     final completer = Completer<ContactCopyResult>();
-    final service = _FakeContactCopyService(completer: completer);
+    final service = _FakeContactCopyService(createCompleter: completer);
     final controller = ContactCopyController(service);
 
     final first = controller.create(draft);
@@ -100,9 +100,98 @@ void main() {
       ],
     );
 
-    expect(service.calls, 1);
+    expect(service.createCalls, 1);
     expect(results.first?.createdContactId, 'copy-2');
     expect(results.last, isNull);
+  });
+
+  test('blocheaza repetarea aceluiasi draft dupa succes', () async {
+    final service = _FakeContactCopyService(
+      result: const ContactCopyResult(
+        status: ContactCopyStatus.success,
+        createdContactId: 'copy-1',
+      ),
+    );
+    final controller = ContactCopyController(service);
+
+    await controller.create(draft);
+    final repeated = await controller.create(draft);
+
+    expect(repeated, isNull);
+    expect(service.createCalls, 1);
+  });
+
+  test('elimina copia verificata si permite recrearea draftului', () async {
+    final service = _FakeContactCopyService(
+      result: const ContactCopyResult(
+        status: ContactCopyStatus.success,
+        createdContactId: 'copy-remove',
+      ),
+      removalResult: const ContactCopyRemovalResult(
+        status: ContactCopyRemovalStatus.success,
+      ),
+    );
+    final controller = ContactCopyController(service);
+    await controller.create(draft);
+
+    final removal = await controller.removeCurrentCopy(draft);
+
+    expect(removal?.isSuccess, isTrue);
+    expect(controller.status, ContactCopyControllerStatus.removed);
+    expect(service.removalCalls, 1);
+    expect(service.lastRemovedId, 'copy-remove');
+    expect(service.lastRemovalDraft?.fingerprint, draft.fingerprint);
+
+    final recreated = await controller.create(draft);
+    expect(recreated?.isSuccess, isTrue);
+    expect(service.createCalls, 2);
+  });
+
+  test('refuza eliminarea pentru un draft diferit', () async {
+    final service = _FakeContactCopyService(
+      result: const ContactCopyResult(
+        status: ContactCopyStatus.success,
+        createdContactId: 'copy-1',
+      ),
+    );
+    final controller = ContactCopyController(service);
+    await controller.create(draft);
+
+    const changed = ContactCopyDraft(
+      displayName: 'Ana Maria Popescu',
+      phones: <String>['0712345678'],
+      emails: <String>['ana@example.com'],
+      sourceContactIds: <String>['a', 'b'],
+    );
+    final removal = await controller.removeCurrentCopy(changed);
+
+    expect(removal, isNull);
+    expect(service.removalCalls, 0);
+    expect(controller.status, ContactCopyControllerStatus.success);
+  });
+
+  test('pastreaza starea de esec daca identitatea nu corespunde', () async {
+    final service = _FakeContactCopyService(
+      result: const ContactCopyResult(
+        status: ContactCopyStatus.success,
+        createdContactId: 'copy-changed',
+      ),
+      removalResult: const ContactCopyRemovalResult(
+        status: ContactCopyRemovalStatus.identityMismatch,
+        errorCode: 'contact_copy_identity_mismatch',
+      ),
+    );
+    final controller = ContactCopyController(service);
+    await controller.create(draft);
+
+    await controller.removeCurrentCopy(draft);
+
+    expect(controller.status, ContactCopyControllerStatus.removalFailed);
+    expect(
+      controller.removalResult?.status,
+      ContactCopyRemovalStatus.identityMismatch,
+    );
+    expect(await controller.create(draft), isNull);
   });
 
   test('pastreaza starea distincta cand rollbackul esueaza', () async {
@@ -120,12 +209,13 @@ void main() {
 
     expect(controller.status, ContactCopyControllerStatus.rollbackFailed);
     expect(controller.result?.createdContactId, 'copy-orphan');
+    expect(await controller.create(draft), isNull);
   });
 
   test('reseteaza rezultatul numai cand nu exista operatie activa', () async {
     final completer = Completer<ContactCopyResult>();
     final controller = ContactCopyController(
-      _FakeContactCopyService(completer: completer),
+      _FakeContactCopyService(createCompleter: completer),
     );
 
     final pending = controller.create(draft);
@@ -141,21 +231,33 @@ void main() {
 
     expect(controller.status, ContactCopyControllerStatus.idle);
     expect(controller.result, isNull);
+    expect(controller.removalResult, isNull);
     expect(controller.matchesDraft(draft), isFalse);
   });
 }
 
 class _FakeContactCopyService implements ContactCopyService {
   final ContactCopyResult? result;
-  final Completer<ContactCopyResult>? completer;
-  int calls = 0;
+  final Completer<ContactCopyResult>? createCompleter;
+  final ContactCopyRemovalResult? removalResult;
+  final Completer<ContactCopyRemovalResult>? removalCompleter;
 
-  _FakeContactCopyService({this.result, this.completer});
+  int createCalls = 0;
+  int removalCalls = 0;
+  String? lastRemovedId;
+  ContactCopyDraft? lastRemovalDraft;
+
+  _FakeContactCopyService({
+    this.result,
+    this.createCompleter,
+    this.removalResult,
+    this.removalCompleter,
+  });
 
   @override
   Future<ContactCopyResult> createVerifiedCopy(ContactCopyDraft draft) {
-    calls++;
-    final pending = completer;
+    createCalls++;
+    final pending = createCompleter;
     if (pending != null) {
       return pending.future;
     }
@@ -163,6 +265,26 @@ class _FakeContactCopyService implements ContactCopyService {
       result ??
           const ContactCopyResult(
             status: ContactCopyStatus.createFailed,
+          ),
+    );
+  }
+
+  @override
+  Future<ContactCopyRemovalResult> removeVerifiedCopy({
+    required String createdContactId,
+    required ContactCopyDraft expectedDraft,
+  }) {
+    removalCalls++;
+    lastRemovedId = createdContactId;
+    lastRemovalDraft = expectedDraft;
+    final pending = removalCompleter;
+    if (pending != null) {
+      return pending.future;
+    }
+    return Future<ContactCopyRemovalResult>.value(
+      removalResult ??
+          const ContactCopyRemovalResult(
+            status: ContactCopyRemovalStatus.deleteFailed,
           ),
     );
   }
