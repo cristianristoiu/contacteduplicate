@@ -147,6 +147,7 @@ class _FinalNameFieldState extends State<_FinalNameField> {
   void initState() {
     super.initState();
     _textController = TextEditingController();
+    _focusNode.addListener(_handleFocusChanged);
   }
 
   @override
@@ -158,6 +159,12 @@ class _FinalNameFieldState extends State<_FinalNameField> {
       _mergeController = controller;
       controller.addListener(_synchronizeText);
       _replaceText(controller.displayName);
+    }
+  }
+
+  void _handleFocusChanged() {
+    if (!_focusNode.hasFocus) {
+      _synchronizeText();
     }
   }
 
@@ -181,6 +188,7 @@ class _FinalNameFieldState extends State<_FinalNameField> {
   @override
   void dispose() {
     _mergeController?.removeListener(_synchronizeText);
+    _focusNode.removeListener(_handleFocusChanged);
     _textController.dispose();
     _focusNode.dispose();
     super.dispose();
