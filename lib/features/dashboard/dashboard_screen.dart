@@ -47,13 +47,38 @@ class DashboardScreen extends StatelessWidget {
           AppPrimaryButton(
             label: scanController.isScanning
                 ? 'Se scaneaza contactele'
-                : l10n.text('scan_contacts'),
-            icon: Icons.manage_search,
+                : scanController.resultsStale
+                    ? 'Actualizeaza scanarea'
+                    : l10n.text('scan_contacts'),
+            icon: scanController.resultsStale
+                ? Icons.refresh_rounded
+                : Icons.manage_search,
             isLoading: scanController.isScanning,
             onPressed: scanController.isScanning
                 ? null
                 : () => unawaited(_startScan(context)),
           ),
+          if (scanController.resultsStale) ...<Widget>[
+            const SizedBox(height: 16),
+            AppCard(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Icon(
+                    Icons.sync_problem_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Agenda s-a modificat dupa ultima scanare. Statisticile si grupurile vechi nu mai sunt folosite pentru operatii noi.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (scanController.status == ScanStatus.permissionDenied) ...<Widget>[
             const SizedBox(height: 16),
             _PermissionMessage(controller: scanController),
@@ -96,7 +121,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Backup-ul va fi creat inainte de orice modificare reala.',
+                  'Backup-ul local criptat este verificat inainte de operatiile care pot modifica agenda.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -180,16 +205,19 @@ class _DuplicateSummaryCard extends StatelessWidget {
     final isScanning = controller.isScanning;
     final groupCount = controller.duplicateGroupCount;
     final totalContacts = controller.totalContacts;
-    final summary = switch (controller.status) {
-      ScanStatus.idle => 'Scaneaza agenda pentru a vedea rezultatele.',
-      ScanStatus.scanning => 'Contactele sunt citite si comparate local.',
-      ScanStatus.completed => groupCount == 0
-          ? 'Nu au fost gasite duplicate exacte in $totalContacts contacte.'
-          : 'Au fost gasite $groupCount grupuri in $totalContacts contacte.',
-      ScanStatus.permissionDenied =>
-        'Scanarea necesita acces la contactele dispozitivului.',
-      ScanStatus.error => 'Ultima scanare nu a putut fi finalizata.',
-    };
+    final stale = controller.resultsStale;
+    final summary = stale
+        ? 'Rezultatele nu mai corespund starii curente a agendei. Ruleaza o scanare noua.'
+        : switch (controller.status) {
+            ScanStatus.idle => 'Scaneaza agenda pentru a vedea rezultatele.',
+            ScanStatus.scanning => 'Contactele sunt citite si comparate local.',
+            ScanStatus.completed => groupCount == 0
+                ? 'Nu au fost gasite duplicate exacte in $totalContacts contacte.'
+                : 'Au fost gasite $groupCount grupuri in $totalContacts contacte.',
+            ScanStatus.permissionDenied =>
+              'Scanarea necesita acces la contactele dispozitivului.',
+            ScanStatus.error => 'Ultima scanare nu a putut fi finalizata.',
+          };
 
     return AppCard(
       child: Column(
@@ -210,11 +238,15 @@ class _DuplicateSummaryCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       Text(
-                        '$groupCount',
+                        stale ? '—' : '$groupCount',
                         style: Theme.of(context).textTheme.displayLarge,
                       ),
                       Text(
-                        groupCount == 1 ? 'grup duplicat' : 'grupuri duplicate',
+                        stale
+                            ? 'rezultate invechite'
+                            : groupCount == 1
+                                ? 'grup duplicat'
+                                : 'grupuri duplicate',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
