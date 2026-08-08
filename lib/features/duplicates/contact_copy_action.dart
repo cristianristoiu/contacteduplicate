@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -56,36 +58,47 @@ class ContactCopyAction extends StatelessWidget {
         copyController.status == ContactCopyControllerStatus.removing;
     final exactDraftSucceeded = stateBelongsToCurrentDraft &&
         copyController.status == ContactCopyControllerStatus.success;
+    final exactDraftRemoved = stateBelongsToCurrentDraft &&
+        copyController.status == ContactCopyControllerStatus.removed;
     final exactDraftRequiresManualCheck = stateBelongsToCurrentDraft &&
         (copyController.status == ContactCopyControllerStatus.rollbackFailed ||
             copyController.status ==
                 ContactCopyControllerStatus.removalPermissionDenied ||
             copyController.status == ContactCopyControllerStatus.removalFailed);
+    final canRescanAfterRemoval =
+        exactDraftRemoved && scanController.resultsStale && !scanController.isScanning;
     final writeBlocked = !validationReady ||
         copyController.isBusy ||
         exactDraftSucceeded ||
         exactDraftRequiresManualCheck;
 
-    final buttonLabel = isRemoving
-        ? 'Se elimina copia consolidata'
-        : isBusyForCurrentDraft
-            ? 'Se creeaza si se verifica copia'
-            : isBusyForAnotherDraft
-                ? 'Alta operatie este in curs'
-                : exactDraftSucceeded
-                    ? 'Copia acestui draft a fost creata'
-                    : exactDraftRequiresManualCheck
-                        ? 'Verifica agenda manual'
-                        : !validationReady
-                            ? 'Rescaneaza agenda pentru continuare'
-                            : 'Creeaza copia consolidata';
-    final buttonIcon = exactDraftSucceeded
-        ? Icons.verified_outlined
-        : exactDraftRequiresManualCheck
-            ? Icons.warning_amber_rounded
+    final buttonLabel = scanController.isScanning && exactDraftRemoved
+        ? 'Se rescaneaza agenda'
+        : canRescanAfterRemoval
+            ? 'Rescaneaza agenda'
             : isRemoving
-                ? Icons.delete_outline_rounded
-                : Icons.person_add_alt_1_outlined;
+                ? 'Se elimina copia consolidata'
+                : isBusyForCurrentDraft
+                    ? 'Se creeaza si se verifica copia'
+                    : isBusyForAnotherDraft
+                        ? 'Alta operatie este in curs'
+                        : exactDraftSucceeded
+                            ? 'Copia acestui draft a fost creata'
+                            : exactDraftRequiresManualCheck
+                                ? 'Verifica agenda manual'
+                                : !validationReady
+                                    ? 'Rescaneaza agenda pentru continuare'
+                                    : 'Creeaza copia consolidata';
+    final buttonIcon = canRescanAfterRemoval ||
+            (scanController.isScanning && exactDraftRemoved)
+        ? Icons.refresh_rounded
+        : exactDraftSucceeded
+            ? Icons.verified_outlined
+            : exactDraftRequiresManualCheck
+                ? Icons.warning_amber_rounded
+                : isRemoving
+                    ? Icons.delete_outline_rounded
+                    : Icons.person_add_alt_1_outlined;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -100,16 +113,19 @@ class ContactCopyAction extends StatelessWidget {
         AppPrimaryButton(
           label: buttonLabel,
           icon: buttonIcon,
-          isLoading: isBusyForCurrentDraft,
-          onPressed: writeBlocked
-              ? null
-              : () => _confirmAndCreate(
-                    context,
-                    backupController,
-                    mergeController,
-                    copyController,
-                    currentDraft,
-                  ),
+          isLoading: isBusyForCurrentDraft ||
+              (scanController.isScanning && exactDraftRemoved),
+          onPressed: canRescanAfterRemoval
+              ? () => unawaited(scanController.scan())
+              : writeBlocked
+                  ? null
+                  : () => _confirmAndCreate(
+                        context,
+                        backupController,
+                        mergeController,
+                        copyController,
+                        currentDraft,
+                      ),
         ),
         if (exactDraftSucceeded) ...<Widget>[
           const SizedBox(height: 12),
