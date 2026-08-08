@@ -16,6 +16,7 @@ class ScanController extends ChangeNotifier {
   ScanStatus _status = ScanStatus.idle;
   ContactsScanResult? _result;
   bool _settingsOpenFailed = false;
+  bool _resultsStale = false;
   bool _isDisposed = false;
 
   ScanController(this._service);
@@ -27,6 +28,8 @@ class ScanController extends ChangeNotifier {
   bool get isScanning => _status == ScanStatus.scanning;
 
   bool get settingsOpenFailed => _settingsOpenFailed;
+
+  bool get resultsStale => _resultsStale;
 
   int get totalContacts => _result?.totalContacts ?? 0;
 
@@ -60,6 +63,7 @@ class ScanController extends ChangeNotifier {
     }
 
     _result = result;
+    _resultsStale = false;
     if (result.canReadContacts) {
       _status = ScanStatus.completed;
     } else if (result.permissionState == ContactsPermissionState.failure) {
@@ -67,6 +71,15 @@ class ScanController extends ChangeNotifier {
     } else {
       _status = ScanStatus.permissionDenied;
     }
+    _notifySafely();
+  }
+
+  void markResultsStale() {
+    if (_result == null || _resultsStale) {
+      return;
+    }
+
+    _resultsStale = true;
     _notifySafely();
   }
 
@@ -91,6 +104,7 @@ class ScanController extends ChangeNotifier {
     _status = ScanStatus.idle;
     _result = null;
     _settingsOpenFailed = false;
+    _resultsStale = false;
     _notifySafely();
   }
 
