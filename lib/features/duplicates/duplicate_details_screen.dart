@@ -12,6 +12,7 @@ import '../../shared/widgets/contact_avatar.dart';
 import '../backup/backup_merge_gate.dart';
 import '../dashboard/scan_controller.dart';
 import 'contact_copy_action.dart';
+import 'contact_copy_controller.dart';
 import 'merge_detail_controller.dart';
 import 'merge_preview_editor.dart';
 
@@ -77,11 +78,14 @@ class _DuplicateDetailsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mergeController = context.watch<MergeDetailController>();
+    final copyController = context.watch<ContactCopyController>();
     final selectedValueCount = mergeController.selectedPhones.length +
         mergeController.selectedEmails.length;
     final sourceContactIds = group.contacts
         .map((contact) => contact.nativeId)
         .toList(growable: false);
+    final editorLocked = copyController.matchesSources(sourceContactIds) &&
+        _locksEditor(copyController.status);
 
     return AppScaffold(
       title: 'Previzualizare fuziune',
@@ -121,7 +125,7 @@ class _DuplicateDetailsContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          const MergePreviewEditor(),
+          MergePreviewEditor(locked: editorLocked),
           const SizedBox(height: 28),
           BackupMergeGate(
             previewValid: mergeController.isValid,
@@ -133,6 +137,15 @@ class _DuplicateDetailsContent extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  bool _locksEditor(ContactCopyControllerStatus status) {
+    return status == ContactCopyControllerStatus.creating ||
+        status == ContactCopyControllerStatus.success ||
+        status == ContactCopyControllerStatus.rollbackFailed ||
+        status == ContactCopyControllerStatus.removing ||
+        status == ContactCopyControllerStatus.removalPermissionDenied ||
+        status == ContactCopyControllerStatus.removalFailed;
   }
 }
 
