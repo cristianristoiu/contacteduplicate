@@ -32,11 +32,18 @@ class ScanController extends ChangeNotifier {
 
   int get duplicateGroupCount => _result?.duplicateGroups.length ?? 0;
 
-  int get duplicateContactCount => _result?.duplicateGroups.fold<int>(
-        0,
-        (total, group) => total + group.contacts.length,
-      ) ??
-      0;
+  int get duplicateContactCount {
+    final groups = _result?.duplicateGroups;
+    if (groups == null || groups.isEmpty) {
+      return 0;
+    }
+
+    return groups
+        .expand((group) => group.contacts)
+        .map((contact) => contact.nativeId)
+        .toSet()
+        .length;
+  }
 
   Future<void> scan() async {
     if (isScanning) {
