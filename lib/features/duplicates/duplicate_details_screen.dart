@@ -9,6 +9,7 @@ import '../../shared/widgets/app_empty_state.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/contact_avatar.dart';
+import '../backup/backup_controller.dart';
 import '../backup/backup_merge_gate.dart';
 import '../dashboard/scan_controller.dart';
 import 'contact_copy_action.dart';
@@ -86,6 +87,16 @@ class _DuplicateDetailsContent extends StatelessWidget {
     final sourceContactIds = group.contacts
         .map((contact) => contact.nativeId)
         .toList(growable: false);
+    final sourceSnapshots = group.contacts
+        .map(
+          (contact) => MergeSourceSnapshot(
+            id: contact.nativeId,
+            displayName: contact.displayName,
+            phones: contact.phones,
+            emails: contact.emails,
+          ),
+        )
+        .toList(growable: false);
     final editorLocked = copyController.matchesSources(sourceContactIds) &&
         _locksEditor(copyController.status);
 
@@ -134,8 +145,12 @@ class _DuplicateDetailsContent extends StatelessWidget {
             sourceContactCount: group.contacts.length,
             selectedValueCount: selectedValueCount,
             sourceContactIds: sourceContactIds,
+            sourceSnapshots: sourceSnapshots,
           ),
-          ContactCopyAction(sourceContactIds: sourceContactIds),
+          ContactCopyAction(
+            sourceContactIds: sourceContactIds,
+            sourceSnapshots: sourceSnapshots,
+          ),
         ],
       ),
     );
