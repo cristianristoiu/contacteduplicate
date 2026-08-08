@@ -51,7 +51,9 @@ class DuplicateDetailsScreen extends StatelessWidget {
     }
 
     return ChangeNotifierProvider<MergeDetailController>(
-      key: ValueKey<String>(group.id),
+      key: ValueKey<String>(
+        '${group.id}:${scanController.scanRevision}',
+      ),
       create: (_) => MergeDetailController(group),
       child: _DuplicateDetailsContent(group: group),
     );
