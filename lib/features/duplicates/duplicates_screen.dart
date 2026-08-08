@@ -36,6 +36,17 @@ class DuplicatesScreen extends StatelessWidget {
         ScanStatus.scanning => const Center(
             child: AppLoadingIndicator(),
           ),
+        ScanStatus.completed when controller.resultsStale => AppEmptyState(
+            icon: Icons.sync_problem_rounded,
+            title: 'Rezultatele trebuie actualizate',
+            description:
+                'Agenda s-a modificat dupa ultima scanare. Grupurile vechi sunt blocate pentru a evita folosirea unor date care nu mai corespund contactelor curente.',
+            primaryButton: AppPrimaryButton(
+              label: 'Rescaneaza agenda',
+              icon: Icons.refresh_rounded,
+              onPressed: () => unawaited(controller.scan()),
+            ),
+          ),
         ScanStatus.completed when groups.isEmpty => AppEmptyState(
             icon: Icons.verified_outlined,
             title: 'Nu au fost gasite duplicate exacte',
@@ -162,7 +173,7 @@ class _DuplicateGroupCard extends StatelessWidget {
             ),
           ),
           Text(
-            'Deschide grupul pentru compararea read-only a campurilor. Fuziunea ramane blocata pana la implementarea backup-ului.',
+            'Deschide grupul pentru comparare si pregatirea copiei consolidate. Stergerea contactelor sursa ramane blocata.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
