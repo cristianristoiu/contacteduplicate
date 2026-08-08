@@ -33,6 +33,7 @@ class ContactCopyAction extends StatelessWidget {
     final backup = backupController.latestMergeEligibleBackup;
     final validation = backupController.mergeValidation;
     final validationReady = !scanController.resultsStale &&
+        !scanController.isScanning &&
         mergeController.isValid &&
         backup != null &&
         validation != null &&
@@ -161,6 +162,7 @@ class ContactCopyAction extends StatelessWidget {
     ContactCopyController copyController,
     ContactCopyDraft confirmedDraft,
   ) async {
+    final confirmedScanRevision = context.read<ScanController>().scanRevision;
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -211,9 +213,13 @@ class ContactCopyAction extends StatelessWidget {
       return;
     }
 
+    final scanController = context.read<ScanController>();
     final currentBackup = backupController.latestMergeEligibleBackup;
     final currentDraft = _copyDraft(mergeController.draft);
-    if (!sourceValidation.isValid ||
+    if (scanController.resultsStale ||
+        scanController.isScanning ||
+        scanController.scanRevision != confirmedScanRevision ||
+        !sourceValidation.isValid ||
         !sourceValidation.sourceContentValidated ||
         currentBackup == null ||
         sourceValidation.backupId != currentBackup.id ||
@@ -221,7 +227,7 @@ class ContactCopyAction extends StatelessWidget {
         currentDraft.fingerprint != confirmedDraft.fingerprint) {
       _showMessage(
         context,
-        'Backupul, sursele sau previzualizarea nu mai corespund. Revalideaza datele inainte de scriere.',
+        'Backupul, scanarea, sursele sau previzualizarea nu mai corespund. Revalideaza datele inainte de scriere.',
       );
       return;
     }
