@@ -14,9 +14,11 @@ import 'merge_detail_controller.dart';
 
 class ContactCopyAction extends StatelessWidget {
   final List<String> sourceContactIds;
+  final List<MergeSourceSnapshot> sourceSnapshots;
 
   const ContactCopyAction({
     required this.sourceContactIds,
+    required this.sourceSnapshots,
     super.key,
   });
 
@@ -35,6 +37,7 @@ class ContactCopyAction extends StatelessWidget {
         backup != null &&
         validation != null &&
         validation.isValid &&
+        validation.sourceContentValidated &&
         validation.backupId == backup.id &&
         validation.matchesSources(sourceContactIds);
     final persistentState = stateBelongsToCurrentDraft &&
@@ -87,7 +90,7 @@ class ContactCopyAction extends StatelessWidget {
                             : exactDraftRequiresManualCheck
                                 ? 'Verifica agenda manual'
                                 : !validationReady
-                                    ? 'Rescaneaza agenda pentru continuare'
+                                    ? 'Revalideaza sursele pentru continuare'
                                     : 'Creeaza copia consolidata';
     final buttonIcon = canRescanAfterRemoval ||
             (scanController.isScanning && exactDraftRemoved)
@@ -200,8 +203,10 @@ class ContactCopyAction extends StatelessWidget {
       return;
     }
 
-    final sourceValidation =
-        await backupController.validateMergeSources(sourceContactIds);
+    final sourceValidation = await backupController.validateMergeSources(
+      sourceContactIds,
+      sourceSnapshots: sourceSnapshots,
+    );
     if (!context.mounted) {
       return;
     }
@@ -209,13 +214,14 @@ class ContactCopyAction extends StatelessWidget {
     final currentBackup = backupController.latestMergeEligibleBackup;
     final currentDraft = _copyDraft(mergeController.draft);
     if (!sourceValidation.isValid ||
+        !sourceValidation.sourceContentValidated ||
         currentBackup == null ||
         sourceValidation.backupId != currentBackup.id ||
         !mergeController.isValid ||
         currentDraft.fingerprint != confirmedDraft.fingerprint) {
       _showMessage(
         context,
-        'Conditiile de siguranta sau previzualizarea s-au schimbat. Revalideaza datele inainte de scriere.',
+        'Backupul, sursele sau previzualizarea nu mai corespund. Revalideaza datele inainte de scriere.',
       );
       return;
     }
