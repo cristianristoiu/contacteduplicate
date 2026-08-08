@@ -16,18 +16,30 @@ void main() {
       nativeId: '2',
       displayName: 'Contact B',
       phones: <String>['+40711000000'],
-      emails: <String>[],
+      emails: <String>['b@example.com'],
     );
-    const group = DuplicateContactGroup(
+    const contactC = ScannedContact(
+      nativeId: '3',
+      displayName: 'Contact C',
+      phones: <String>[],
+      emails: <String>['b@example.com'],
+    );
+    const phoneGroup = DuplicateContactGroup(
       id: '1|2',
       contacts: <ScannedContact>[contactA, contactB],
       reasons: <DuplicateMatchReason>{DuplicateMatchReason.phone},
       confidenceScore: 75,
     );
+    const emailGroup = DuplicateContactGroup(
+      id: '2|3',
+      contacts: <ScannedContact>[contactB, contactC],
+      reasons: <DuplicateMatchReason>{DuplicateMatchReason.email},
+      confidenceScore: 70,
+    );
     const result = ContactsScanResult(
       permissionState: ContactsPermissionState.granted,
       totalContacts: 10,
-      duplicateGroups: <DuplicateContactGroup>[group],
+      duplicateGroups: <DuplicateContactGroup>[phoneGroup, emailGroup],
     );
     final controller = ScanController(_FakeScanService(result));
 
@@ -35,8 +47,32 @@ void main() {
 
     expect(controller.status, ScanStatus.completed);
     expect(controller.totalContacts, 10);
-    expect(controller.duplicateGroupCount, 1);
-    expect(controller.duplicateContactCount, 2);
+    expect(controller.duplicateGroupCount, 2);
+    expect(controller.duplicateContactCount, 3);
+    expect(controller.scanRevision, 1);
+    expect(controller.resultsStale, isFalse);
+  });
+
+  test('marcheaza rezultatul invechit si il improspateaza prin rescannare', () async {
+    const result = ContactsScanResult(
+      permissionState: ContactsPermissionState.granted,
+      totalContacts: 2,
+      duplicateGroups: <DuplicateContactGroup>[],
+    );
+    final service = _FakeScanService(result);
+    final controller = ScanController(service);
+
+    await controller.scan();
+    controller.markResultsStale();
+
+    expect(controller.resultsStale, isTrue);
+    expect(controller.scanRevision, 1);
+
+    await controller.scan();
+
+    expect(controller.resultsStale, isFalse);
+    expect(controller.scanRevision, 2);
+    expect(service.scanCalls, 2);
   });
 
   test('mapeaza refuzul permisiunii in starea dedicata', () async {
@@ -52,6 +88,7 @@ void main() {
       controller.result?.permissionState,
       ContactsPermissionState.permanentlyDenied,
     );
+    expect(controller.scanRevision, 1);
   });
 
   test('ignora o a doua cerere cat timp scanarea ruleaza', () async {
@@ -71,6 +108,7 @@ void main() {
 
     expect(service.scanCalls, 1);
     expect(controller.status, ScanStatus.completed);
+    expect(controller.scanRevision, 1);
   });
 
   test('semnalizeaza esecul deschiderii setarilor sistemului', () async {
