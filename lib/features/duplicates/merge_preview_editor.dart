@@ -7,7 +7,12 @@ import '../../shared/widgets/contact_avatar.dart';
 import 'merge_detail_controller.dart';
 
 class MergePreviewEditor extends StatelessWidget {
-  const MergePreviewEditor({super.key});
+  final bool locked;
+
+  const MergePreviewEditor({
+    this.locked = false,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,13 +27,36 @@ class MergePreviewEditor extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Selectiile modifica doar previzualizarea. Agenda dispozitivului ramane neschimbata.',
+          locked
+              ? 'Previzualizarea este blocata temporar pentru a pastra legatura exacta cu operatia efectuata in agenda.'
+              : 'Selectiile modifica doar previzualizarea. Agenda dispozitivului ramane neschimbata.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
+        if (locked) ...<Widget>[
+          const SizedBox(height: 12),
+          AppCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(
+                  Icons.lock_outline_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Campurile nu pot fi schimbate pana cand operatia curenta este anulata sau agenda este rescannata.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
-        _MasterSelection(controller: controller),
+        _MasterSelection(controller: controller, locked: locked),
         const SizedBox(height: 16),
-        const _FinalNameField(),
+        _FinalNameField(locked: locked),
         const SizedBox(height: 16),
         _ValueSelectionCard(
           title: 'Telefoane pastrate',
@@ -36,6 +64,7 @@ class MergePreviewEditor extends StatelessWidget {
           icon: Icons.phone_outlined,
           options: controller.phoneOptions,
           selectedIds: controller.selectedPhoneIds,
+          locked: locked,
           onChanged: controller.setPhoneSelected,
         ),
         const SizedBox(height: 16),
@@ -45,10 +74,11 @@ class MergePreviewEditor extends StatelessWidget {
           icon: Icons.email_outlined,
           options: controller.emailOptions,
           selectedIds: controller.selectedEmailIds,
+          locked: locked,
           onChanged: controller.setEmailSelected,
         ),
         const SizedBox(height: 16),
-        _EditorActions(controller: controller),
+        _EditorActions(controller: controller, locked: locked),
         const SizedBox(height: 20),
         _LivePreview(controller: controller),
         if (!controller.isValid) ...<Widget>[
@@ -62,8 +92,12 @@ class MergePreviewEditor extends StatelessWidget {
 
 class _MasterSelection extends StatelessWidget {
   final MergeDetailController controller;
+  final bool locked;
 
-  const _MasterSelection({required this.controller});
+  const _MasterSelection({
+    required this.controller,
+    required this.locked,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +135,7 @@ class _MasterSelection extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                onSelected: selected
+                onSelected: locked || selected
                     ? null
                     : (_) => controller.selectMaster(contact.nativeId),
               );
@@ -115,20 +149,24 @@ class _MasterSelection extends StatelessWidget {
 
 class _EditorActions extends StatelessWidget {
   final MergeDetailController controller;
+  final bool locked;
 
-  const _EditorActions({required this.controller});
+  const _EditorActions({
+    required this.controller,
+    required this.locked,
+  });
 
   @override
   Widget build(BuildContext context) {
     final keepAllButton = AppSecondaryButton(
       label: 'Pastreaza toate',
       icon: Icons.select_all_rounded,
-      onPressed: controller.keepAllValues,
+      onPressed: locked ? null : controller.keepAllValues,
     );
     final resetButton = AppSecondaryButton(
       label: 'Reseteaza',
       icon: Icons.restart_alt_rounded,
-      onPressed: controller.resetToSafeDefault,
+      onPressed: locked ? null : controller.resetToSafeDefault,
     );
 
     return LayoutBuilder(
@@ -157,7 +195,9 @@ class _EditorActions extends StatelessWidget {
 }
 
 class _FinalNameField extends StatefulWidget {
-  const _FinalNameField();
+  final bool locked;
+
+  const _FinalNameField({required this.locked});
 
   @override
   State<_FinalNameField> createState() => _FinalNameFieldState();
@@ -225,15 +265,20 @@ class _FinalNameFieldState extends State<_FinalNameField> {
       child: TextField(
         controller: _textController,
         focusNode: _focusNode,
+        readOnly: widget.locked,
         textCapitalization: TextCapitalization.words,
         textInputAction: TextInputAction.done,
         maxLength: 160,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Numele final',
-          helperText: 'Poti corecta manual numele rezultat.',
-          prefixIcon: Icon(Icons.badge_outlined),
+          helperText: widget.locked
+              ? 'Numele este blocat cat timp operatia curenta trebuie pastrata verificabila.'
+              : 'Poti corecta manual numele rezultat.',
+          prefixIcon: const Icon(Icons.badge_outlined),
         ),
-        onChanged: context.read<MergeDetailController>().updateDisplayName,
+        onChanged: widget.locked
+            ? null
+            : context.read<MergeDetailController>().updateDisplayName,
       ),
     );
   }
@@ -245,6 +290,7 @@ class _ValueSelectionCard extends StatelessWidget {
   final IconData icon;
   final List<MergeValueOption> options;
   final Set<String> selectedIds;
+  final bool locked;
   final void Function(String optionId, bool selected) onChanged;
 
   const _ValueSelectionCard({
@@ -253,6 +299,7 @@ class _ValueSelectionCard extends StatelessWidget {
     required this.icon,
     required this.options,
     required this.selectedIds,
+    required this.locked,
     required this.onChanged,
   });
 
@@ -298,11 +345,13 @@ class _ValueSelectionCard extends StatelessWidget {
                       ? 'Prezenta intr-un contact'
                       : 'Prezenta in $sourceCount contacte',
                 ),
-                onChanged: (selected) {
-                  if (selected != null) {
-                    onChanged(option.id, selected);
-                  }
-                },
+                onChanged: locked
+                    ? null
+                    : (selected) {
+                        if (selected != null) {
+                          onChanged(option.id, selected);
+                        }
+                      },
               );
             }),
         ],
