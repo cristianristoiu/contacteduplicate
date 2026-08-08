@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 
 import '../../core/backup/contact_backup_service.dart';
 
@@ -18,8 +19,24 @@ enum MergeBackupValidationStatus {
   valid,
   noEligibleBackup,
   sourceContactsMissing,
+  sourceContactsChanged,
   backupExpired,
   failed,
+}
+
+@immutable
+class MergeSourceSnapshot {
+  final String id;
+  final String displayName;
+  final List<String> phones;
+  final List<String> emails;
+
+  const MergeSourceSnapshot({
+    required this.id,
+    required this.displayName,
+    required this.phones,
+    required this.emails,
+  });
 }
 
 @immutable
@@ -28,6 +45,8 @@ class MergeBackupValidation {
   final String? backupId;
   final List<String> requestedSourceIds;
   final List<String> missingSourceIds;
+  final List<String> changedSourceIds;
+  final bool sourceContentValidated;
   final String? errorCode;
 
   const MergeBackupValidation({
@@ -35,6 +54,8 @@ class MergeBackupValidation {
     required this.backupId,
     required this.requestedSourceIds,
     this.missingSourceIds = const <String>[],
+    this.changedSourceIds = const <String>[],
+    this.sourceContentValidated = false,
     this.errorCode,
   });
 
@@ -65,6 +86,7 @@ Timer _createBackupControllerTimer(
 class BackupController extends ChangeNotifier {
   static const Duration defaultMergeBackupMaxAge = Duration(minutes: 5);
   static const Duration _boundaryPrecision = Duration(milliseconds: 1);
+  static const String _defaultCountryCallingCode = '40';
 
   final ContactBackupService _service;
   final BackupControllerClock _clock;
@@ -226,13 +248,23 @@ class BackupController extends ChangeNotifier {
   }
 
   Future<MergeBackupValidation> validateMergeSources(
-    Iterable<String> sourceIds,
-  ) async {
+    Iterable<String> sourceIds, {
+    Iterable<MergeSourceSnapshot> sourceSnapshots =
+        const <MergeSourceSnapshot>[],
+  }) async {
     final requestedIds = sourceIds
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
         .toSet();
     final sortedRequestedIds = requestedIds.toList()..sort();
+    final snapshotsById = <String, MergeSourceSnapshot>{};
+    for (final snapshot in sourceSnapshots) {
+      final id = snapshot.id.trim();
+      if (id.isNotEmpty) {
+        snapshotsById[id] = snapshot;
+      }
+    }
+    final validateContent = snapshotsById.isNotEmpty;
 
     if (requestedIds.isEmpty) {
       final validation = MergeBackupValidation(
@@ -240,6 +272,18 @@ class BackupController extends ChangeNotifier {
         backupId: null,
         requestedSourceIds: const <String>[],
         errorCode: 'merge_source_ids_missing',
+      );
+      _mergeValidation = validation;
+      _notifySafely();
+      return validation;
+    }
+
+    if (validateContent && !setEquals(requestedIds, snapshotsById.keys.toSet())) {
+      final validation = MergeBackupValidation(
+        status: MergeBackupValidationStatus.failed,
+        backupId: latestMergeEligibleBackup?.id,
+        requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
+        errorCode: 'merge_source_snapshot_mismatch',
       );
       _mergeValidation = validation;
       _notifySafely();
@@ -286,19 +330,55 @@ class BackupController extends ChangeNotifier {
         return validation;
       }
 
-      final backedUpIds = data.contacts
-          .map((contact) => contact.id?.trim())
-          .whereType<String>()
-          .where((id) => id.isNotEmpty)
-          .toSet();
-      final missingIds = requestedIds.difference(backedUpIds).toList()..sort();
+      final backedUpContacts = <String, Contact>{};
+      for (final contact in data.contacts) {
+        final id = contact.id?.trim();
+        if (id != null && id.isNotEmpty) {
+          backedUpContacts[id] = contact;
+        }
+      }
+      final missingIds = requestedIds.difference(backedUpContacts.keys.toSet())
+        ..removeWhere((id) => id.isEmpty);
+      final sortedMissingIds = missingIds.toList()..sort();
+      if (sortedMissingIds.isNotEmpty) {
+        final validation = MergeBackupValidation(
+          status: MergeBackupValidationStatus.sourceContactsMissing,
+          backupId: backup.id,
+          requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
+          missingSourceIds: List<String>.unmodifiable(sortedMissingIds),
+        );
+        _mergeValidation = validation;
+        return validation;
+      }
+
+      if (validateContent) {
+        final changedIds = <String>[];
+        for (final id in sortedRequestedIds) {
+          final snapshot = snapshotsById[id];
+          final backedUpContact = backedUpContacts[id];
+          if (snapshot == null ||
+              backedUpContact == null ||
+              !_matchesSourceSnapshot(backedUpContact, snapshot)) {
+            changedIds.add(id);
+          }
+        }
+        if (changedIds.isNotEmpty) {
+          final validation = MergeBackupValidation(
+            status: MergeBackupValidationStatus.sourceContactsChanged,
+            backupId: backup.id,
+            requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
+            changedSourceIds: List<String>.unmodifiable(changedIds),
+          );
+          _mergeValidation = validation;
+          return validation;
+        }
+      }
+
       final validation = MergeBackupValidation(
-        status: missingIds.isEmpty
-            ? MergeBackupValidationStatus.valid
-            : MergeBackupValidationStatus.sourceContactsMissing,
+        status: MergeBackupValidationStatus.valid,
         backupId: backup.id,
         requestedSourceIds: List<String>.unmodifiable(sortedRequestedIds),
-        missingSourceIds: List<String>.unmodifiable(missingIds),
+        sourceContentValidated: validateContent,
       );
       _mergeValidation = validation;
       return validation;
@@ -324,6 +404,86 @@ class BackupController extends ChangeNotifier {
       _isValidatingMergeSources = false;
       _notifySafely();
     }
+  }
+
+  bool _matchesSourceSnapshot(
+    Contact backedUpContact,
+    MergeSourceSnapshot snapshot,
+  ) {
+    final expectedName = _normalizeName(snapshot.displayName);
+    final actualNames = <String>{};
+    final displayName = backedUpContact.displayName;
+    final firstName = backedUpContact.name?.first;
+    if (displayName != null && displayName.trim().isNotEmpty) {
+      actualNames.add(_normalizeName(displayName));
+    }
+    if (firstName != null && firstName.trim().isNotEmpty) {
+      actualNames.add(_normalizeName(firstName));
+    }
+    if (actualNames.isEmpty) {
+      actualNames.add(_normalizeName('Contact fara nume'));
+    }
+    if (!actualNames.contains(expectedName)) {
+      return false;
+    }
+
+    final expectedPhones = snapshot.phones
+        .map(_normalizePhoneForSnapshot)
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final actualPhones = backedUpContact.phones
+        .map((phone) => _normalizePhoneForSnapshot(phone.number))
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    if (!setEquals(expectedPhones, actualPhones)) {
+      return false;
+    }
+
+    final expectedEmails = snapshot.emails
+        .map(_normalizeEmailForSnapshot)
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final actualEmails = backedUpContact.emails
+        .map((email) => _normalizeEmailForSnapshot(email.address))
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    return setEquals(expectedEmails, actualEmails);
+  }
+
+  String _normalizeName(String value) {
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+  }
+
+  String _normalizePhoneForSnapshot(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+
+    final compact = trimmed.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (compact.isEmpty) {
+      return 'raw:${trimmed.toLowerCase()}';
+    }
+
+    var normalized = compact;
+    if (normalized.startsWith('00')) {
+      normalized = '+${normalized.substring(2)}';
+    }
+    final plusCount = '+'.allMatches(normalized).length;
+    if (plusCount > 1 ||
+        (normalized.contains('+') && !normalized.startsWith('+'))) {
+      return 'raw:${trimmed.toLowerCase()}';
+    }
+
+    final digits = normalized.replaceAll('+', '');
+    if (normalized.startsWith('0') && digits.length >= 9) {
+      return '+$_defaultCountryCallingCode${normalized.substring(1)}';
+    }
+    return normalized;
+  }
+
+  String _normalizeEmailForSnapshot(String value) {
+    return value.trim().toLowerCase();
   }
 
   void clearMergeValidation() {
