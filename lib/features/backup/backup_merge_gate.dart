@@ -15,12 +15,14 @@ class BackupMergeGate extends StatelessWidget {
   final int sourceContactCount;
   final int selectedValueCount;
   final List<String> sourceContactIds;
+  final List<MergeSourceSnapshot> sourceSnapshots;
 
   const BackupMergeGate({
     this.previewValid = false,
     this.sourceContactCount = 0,
     this.selectedValueCount = 0,
     this.sourceContactIds = const <String>[],
+    this.sourceSnapshots = const <MergeSourceSnapshot>[],
     super.key,
   });
 
@@ -84,7 +86,7 @@ class BackupMergeGate extends StatelessWidget {
         _GateStatusCard(
           icon: Icons.verified_user_outlined,
           message:
-              'Backup recent si validat: ${backup.contactCount} contacte, $scopeLabel. Continutul va fi verificat din nou inainte de orice scriere in agenda.',
+              'Backup recent si validat: ${backup.contactCount} contacte, $scopeLabel. Continutul surselor va fi comparat cu snapshotul scanarii inainte de orice scriere in agenda.',
         ),
         const SizedBox(height: 12),
         if (!previewValid) ...<Widget>[
@@ -121,12 +123,12 @@ class BackupMergeGate extends StatelessWidget {
     BackupController controller,
     MergeBackupValidation? validation,
   ) {
-    if (sourceContactIds.isEmpty) {
+    if (sourceContactIds.isEmpty || sourceSnapshots.isEmpty) {
       return <Widget>[
         const _GateStatusCard(
           icon: Icons.error_outline_rounded,
           message:
-              'Identificatorii contactelor sursa nu sunt disponibili. Fuziunea nu poate continua.',
+              'Snapshotul contactelor sursa nu este disponibil complet. Operatia nu poate continua.',
           isError: true,
         ),
       ];
@@ -143,32 +145,31 @@ class BackupMergeGate extends StatelessWidget {
       ];
     }
 
-    if (validation == null) {
+    if (validation == null ||
+        (validation.isValid && !validation.sourceContentValidated)) {
       return <Widget>[
         AppPrimaryButton(
           label: 'Verifica sursele in backup',
           icon: Icons.fact_check_outlined,
           onPressed: controller.isBusy
               ? null
-              : () => unawaited(
-                    controller.validateMergeSources(sourceContactIds),
-                  ),
+              : () => unawaited(_validateSources(controller)),
         ),
         const SizedBox(height: 10),
         Text(
-          'Verificarea reciteste copia criptata si confirma ca toate contactele acestui grup sunt incluse.',
+          'Verificarea reciteste copia criptata si compara ID-ul, numele, telefoanele si emailurile fiecarui contact sursa cu snapshotul scanarii curente.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ];
     }
 
-    if (validation.isValid) {
+    if (validation.isValid && validation.sourceContentValidated) {
       return <Widget>[
         const _GateStatusCard(
           icon: Icons.verified_outlined,
           message:
-              'Toate contactele sursa sunt prezente in backupul recent si verificat.',
+              'Contactele sursa corespund continutului salvat in backupul recent si verificat.',
         ),
         const SizedBox(height: 12),
         const AppPrimaryButton(
@@ -187,18 +188,22 @@ class BackupMergeGate extends StatelessWidget {
 
     final requiresNewBackup = validation.status ==
             MergeBackupValidationStatus.sourceContactsMissing ||
+        validation.status == MergeBackupValidationStatus.sourceContactsChanged ||
         validation.status == MergeBackupValidationStatus.backupExpired ||
         validation.status == MergeBackupValidationStatus.noEligibleBackup;
     final message = switch (validation.status) {
       MergeBackupValidationStatus.sourceContactsMissing =>
-        'Backupul recent nu contine toate contactele sursa. Este necesara o copie noua inainte de fuziune.',
+        'Backupul recent nu contine toate contactele sursa. Este necesara o copie noua inainte de orice operatie.',
+      MergeBackupValidationStatus.sourceContactsChanged =>
+        'Cel putin un contact sursa s-a schimbat fata de backup. Creeaza un backup nou din starea curenta a agendei.',
       MergeBackupValidationStatus.backupExpired =>
         'Backupul a expirat in timpul verificarii. Creeaza o copie noua a agendei.',
       MergeBackupValidationStatus.noEligibleBackup =>
-        'Nu mai exista un backup eligibil pentru aceasta fuziune.',
+        'Nu mai exista un backup eligibil pentru aceasta operatie.',
       MergeBackupValidationStatus.failed =>
-        'Sursele nu au putut fi validate in backup. Reincearca verificarea.',
-      MergeBackupValidationStatus.valid => 'Sursele au fost validate.',
+        'Sursele nu au putut fi validate complet in backup. Reincearca verificarea.',
+      MergeBackupValidationStatus.valid =>
+        'Validarea continutului surselor trebuie refacuta.',
     };
 
     return <Widget>[
@@ -217,11 +222,18 @@ class BackupMergeGate extends StatelessWidget {
             ? null
             : requiresNewBackup
                 ? () => context.go(AppRoutes.backup)
-                : () => unawaited(
-                      controller.validateMergeSources(sourceContactIds),
-                    ),
+                : () => unawaited(_validateSources(controller)),
       ),
     ];
+  }
+
+  Future<MergeBackupValidation> _validateSources(
+    BackupController controller,
+  ) {
+    return controller.validateMergeSources(
+      sourceContactIds,
+      sourceSnapshots: sourceSnapshots,
+    );
   }
 }
 
