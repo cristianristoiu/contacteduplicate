@@ -6,6 +6,7 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/app_secondary_button.dart';
 import '../backup/backup_controller.dart';
+import '../dashboard/scan_controller.dart';
 import 'contact_copy_controller.dart';
 import 'merge_detail_controller.dart';
 
@@ -20,13 +21,15 @@ class ContactCopyAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final backupController = context.watch<BackupController>();
+    final scanController = context.watch<ScanController>();
     final mergeController = context.watch<MergeDetailController>();
     final copyController = context.watch<ContactCopyController>();
     final currentDraft = _copyDraft(mergeController.draft);
     final stateBelongsToCurrentDraft = copyController.matchesDraft(currentDraft);
     final backup = backupController.latestMergeEligibleBackup;
     final validation = backupController.mergeValidation;
-    final validationReady = mergeController.isValid &&
+    final validationReady = !scanController.resultsStale &&
+        mergeController.isValid &&
         backup != null &&
         validation != null &&
         validation.isValid &&
@@ -74,7 +77,7 @@ class ContactCopyAction extends StatelessWidget {
                     : exactDraftRequiresManualCheck
                         ? 'Verifica agenda manual'
                         : !validationReady
-                            ? 'Revalideaza backupul pentru recreare'
+                            ? 'Rescaneaza agenda pentru continuare'
                             : 'Creeaza copia consolidata';
     final buttonIcon = exactDraftSucceeded
         ? Icons.verified_outlined
@@ -206,6 +209,9 @@ class ContactCopyAction extends StatelessWidget {
       return;
     }
 
+    if (_creationMayHaveChangedAgenda(result.status)) {
+      context.read<ScanController>().markResultsStale();
+    }
     _showMessage(context, _resultMessage(result));
   }
 
@@ -247,7 +253,21 @@ class ContactCopyAction extends StatelessWidget {
       return;
     }
 
+    if (_removalMayHaveChangedAgenda(result.status)) {
+      context.read<ScanController>().markResultsStale();
+    }
     _showMessage(context, _removalResultMessage(result));
+  }
+
+  bool _creationMayHaveChangedAgenda(ContactCopyStatus status) {
+    return status == ContactCopyStatus.success ||
+        status == ContactCopyStatus.createFailed ||
+        status == ContactCopyStatus.rollbackFailed;
+  }
+
+  bool _removalMayHaveChangedAgenda(ContactCopyRemovalStatus status) {
+    return status != ContactCopyRemovalStatus.permissionDenied &&
+        status != ContactCopyRemovalStatus.invalidRequest;
   }
 
   ContactCopyDraft _copyDraft(MergeDraft draft) {
