@@ -17,6 +17,7 @@ class ScanController extends ChangeNotifier {
   ContactsScanResult? _result;
   bool _settingsOpenFailed = false;
   bool _resultsStale = false;
+  int _scanRevision = 0;
   bool _isDisposed = false;
 
   ScanController(this._service);
@@ -30,6 +31,8 @@ class ScanController extends ChangeNotifier {
   bool get settingsOpenFailed => _settingsOpenFailed;
 
   bool get resultsStale => _resultsStale;
+
+  int get scanRevision => _scanRevision;
 
   int get totalContacts => _result?.totalContacts ?? 0;
 
@@ -64,6 +67,7 @@ class ScanController extends ChangeNotifier {
 
     _result = result;
     _resultsStale = false;
+    _scanRevision++;
     if (result.canReadContacts) {
       _status = ScanStatus.completed;
     } else if (result.permissionState == ContactsPermissionState.failure) {
