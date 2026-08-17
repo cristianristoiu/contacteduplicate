@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../core/contacts/contact_models.dart';
 import '../duplicates/merge_engine_service.dart';
 import '../history/operation_history.dart';
 import 'restore_service.dart';
@@ -146,9 +147,10 @@ class UndoService {
         requiresReconcile: true,
       );
     }
+    final restoredSet = restoreReport.restoredIds.toSet();
     if (restoreReport.status != RestoreExecutionStatus.success ||
-        restoreReport.restoredIds.toSet().length != targets.length ||
-        !restoreReport.restoredIds.toSet().containsAll(targets)) {
+        restoredSet.length != targets.length ||
+        !restoredSet.containsAll(targets)) {
       return _report(
         operationId,
         startedAt,
@@ -160,32 +162,31 @@ class UndoService {
 
     final consolidatedId = parent.createdContactId!;
     final expectedFingerprint = parent.createdContactFingerprint!;
-    final current = await _readSingle(consolidatedId);
-    if (current == null) {
-      // Contactul consolidat a fost deja eliminat extern. Sursele sunt restaurate,
-      // iar starea finala dorita este deja demonstrata.
-      final consumed = await _history.markUndoConsumed(operationId);
-      if (!consumed) {
-        return _report(
-          operationId,
-          startedAt,
-          UndoExecutionStatus.reconcileRequired,
-          'undo_history_consumption_failed',
-          restoreReport: restoreReport,
-          consolidatedContactRemoved: true,
-          requiresReconcile: true,
-        );
-      }
+    ContactRecord? current;
+    try {
+      current = await _readSingle(consolidatedId);
+    } on TimeoutException {
       return _report(
         operationId,
         startedAt,
-        UndoExecutionStatus.success,
-        null,
+        UndoExecutionStatus.reconcileRequired,
+        'undo_identity_read_timeout',
         restoreReport: restoreReport,
-        consolidatedContactRemoved: true,
+        requiresReconcile: true,
+      );
+    } on Object {
+      return _report(
+        operationId,
+        startedAt,
+        UndoExecutionStatus.reconcileRequired,
+        'undo_identity_read_failed',
+        restoreReport: restoreReport,
+        requiresReconcile: true,
       );
     }
-
+    if (current == null) {
+      return _completeAlreadyRemoved(operationId, startedAt, restoreReport);
+    }
     if (current.revision.fingerprint != expectedFingerprint) {
       return _report(
         operationId,
@@ -197,10 +198,22 @@ class UndoService {
       );
     }
 
-    final hasPermission = await _withTimeout(
-      _mergeGateway.requestWritePermission(),
-      'undo_write_permission_timeout',
-    );
+    final bool hasPermission;
+    try {
+      hasPermission = await _withTimeout(
+        _mergeGateway.requestWritePermission(),
+        'undo_write_permission_timeout',
+      );
+    } on TimeoutException {
+      return _report(
+        operationId,
+        startedAt,
+        UndoExecutionStatus.reconcileRequired,
+        'undo_write_permission_timeout',
+        restoreReport: restoreReport,
+        requiresReconcile: true,
+      );
+    }
     if (!hasPermission) {
       return _report(
         operationId,
@@ -211,20 +224,21 @@ class UndoService {
       );
     }
 
-    final rechecked = await _readSingle(consolidatedId);
-    if (rechecked == null) {
-      final consumed = await _history.markUndoConsumed(operationId);
+    ContactRecord? rechecked;
+    try {
+      rechecked = await _readSingle(consolidatedId);
+    } on Object {
       return _report(
         operationId,
         startedAt,
-        consumed
-            ? UndoExecutionStatus.success
-            : UndoExecutionStatus.reconcileRequired,
-        consumed ? null : 'undo_history_consumption_failed',
+        UndoExecutionStatus.reconcileRequired,
+        'undo_identity_recheck_failed',
         restoreReport: restoreReport,
-        consolidatedContactRemoved: true,
-        requiresReconcile: !consumed,
+        requiresReconcile: true,
       );
+    }
+    if (rechecked == null) {
+      return _completeAlreadyRemoved(operationId, startedAt, restoreReport);
     }
     if (rechecked.revision.fingerprint != expectedFingerprint) {
       return _report(
@@ -276,6 +290,33 @@ class UndoService {
       );
     }
 
+    return _consumeUndo(
+      operationId,
+      startedAt,
+      restoreReport,
+      consolidatedContactRemoved: true,
+    );
+  }
+
+  Future<UndoReport> _completeAlreadyRemoved(
+    String operationId,
+    DateTime startedAt,
+    RestoreReport restoreReport,
+  ) {
+    return _consumeUndo(
+      operationId,
+      startedAt,
+      restoreReport,
+      consolidatedContactRemoved: true,
+    );
+  }
+
+  Future<UndoReport> _consumeUndo(
+    String operationId,
+    DateTime startedAt,
+    RestoreReport restoreReport, {
+    required bool consolidatedContactRemoved,
+  }) async {
     final consumed = await _history.markUndoConsumed(operationId);
     return _report(
       operationId,
@@ -285,25 +326,21 @@ class UndoService {
           : UndoExecutionStatus.reconcileRequired,
       consumed ? null : 'undo_history_consumption_failed',
       restoreReport: restoreReport,
-      consolidatedContactRemoved: true,
+      consolidatedContactRemoved: consolidatedContactRemoved,
       requiresReconcile: !consumed,
     );
   }
 
-  Future<dynamic> _readSingle(String id) async {
-    try {
-      final records = await _withTimeout(
-        _mergeGateway.readContacts(<String>[id]),
-        'undo_identity_read_timeout',
-      );
-      if (records.isEmpty) return null;
-      if (records.length != 1 || records[id] == null) {
-        throw StateError('undo_identity_read_ambiguous');
-      }
-      return records[id];
-    } on TimeoutException {
-      rethrow;
+  Future<ContactRecord?> _readSingle(String id) async {
+    final records = await _withTimeout(
+      _mergeGateway.readContacts(<String>[id]),
+      'undo_identity_read_timeout',
+    );
+    if (records.isEmpty) return null;
+    if (records.length != 1 || records[id] == null) {
+      throw StateError('undo_identity_read_ambiguous');
     }
+    return records[id];
   }
 
   Future<T> _withTimeout<T>(Future<T> future, String code) async {
