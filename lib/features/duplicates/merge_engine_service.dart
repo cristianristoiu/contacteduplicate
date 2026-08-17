@@ -56,7 +56,12 @@ class MergeCancellationToken {
 
   bool get isCancelled => _cancelRequested;
   bool get canCancel => !_criticalPhase;
-  void cancel() => _cancelRequested = true;
+
+  void cancel() {
+    if (_criticalPhase) return;
+    _cancelRequested = true;
+  }
+
   void enterCriticalPhase() => _criticalPhase = true;
   void leaveCriticalPhase() => _criticalPhase = false;
 
@@ -88,9 +93,15 @@ class MergeReport {
     required this.startedAt,
     required this.finishedAt,
     this.requiresReconcile = false,
-  })  : deletedSourceIds = List<String>.unmodifiable(deletedSourceIds),
-        skippedSourceIds = List<String>.unmodifiable(skippedSourceIds),
-        restoredSourceIds = List<String>.unmodifiable(restoredSourceIds);
+  })  : deletedSourceIds = List<String>.unmodifiable(
+          deletedSourceIds.map((id) => id.trim()).where((id) => id.isNotEmpty),
+        ),
+        skippedSourceIds = List<String>.unmodifiable(
+          skippedSourceIds.map((id) => id.trim()).where((id) => id.isNotEmpty),
+        ),
+        restoredSourceIds = List<String>.unmodifiable(
+          restoredSourceIds.map((id) => id.trim()).where((id) => id.isNotEmpty),
+        );
 
   bool get isSuccess => status == MergeExecutionStatus.success;
   bool get changedAgenda =>
@@ -102,6 +113,7 @@ class MergeReport {
 class MergeCreatedContact {
   final String id;
   final ContactRevisionInfo revision;
+
   const MergeCreatedContact({required this.id, required this.revision});
 }
 
@@ -154,14 +166,17 @@ class MergeOperationCheckpoint {
           phase == MergeExecutionPhase.pendingBeforeMutation);
 
   bool get isStructurallyValid =>
-      operationId.isNotEmpty &&
-      operationId.length <= 128 &&
-      planFingerprint.isNotEmpty &&
+      operationId.trim().isNotEmpty &&
+      operationId.length <= MergePlan.maxOperationIdLength &&
+      planFingerprint.trim().isNotEmpty &&
       planFingerprint.length <= 128 &&
       sourceCount >= 2 &&
+      sourceCount <= 10000 &&
       deletedSourceIds.length <= sourceCount &&
+      deletedSourceIds.every((id) => id.length <= 256) &&
       (createdContactId == null ||
-          (createdContactId!.isNotEmpty && createdContactId!.length <= 256)) &&
+          (createdContactId!.trim().isNotEmpty &&
+              createdContactId!.length <= 256)) &&
       !updatedAt.isBefore(createdAt);
 }
 
@@ -186,6 +201,7 @@ class PreferencesMergeOperationJournal implements MergeOperationJournal {
   static const int _schemaVersion = 2;
   static const int _maximumCheckpointBytes = 8192;
   static const int _maximumCompletedEntries = 64;
+
   final SharedPreferencesAsync _preferences;
   final DateTime Function() _clock;
   Future<void> _writeQueue = Future<void>.value();
@@ -200,17 +216,22 @@ class PreferencesMergeOperationJournal implements MergeOperationJournal {
   Future<void> begin(MergePlan plan) async {
     final pending = await readPending();
     if (pending != null) throw StateError('merge_checkpoint_already_exists');
+    if (await wasCompleted(plan.operationId)) {
+      throw StateError('merge_operation_already_completed');
+    }
     final now = _clock().toUtc();
-    await _enqueueWrite(() => _writeCheckpoint(
-          MergeOperationCheckpoint(
-            operationId: plan.operationId,
-            planFingerprint: plan.fingerprint,
-            phase: MergeExecutionPhase.validatingPlan,
-            sourceCount: plan.sourceContactIds.length,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        ));
+    await _enqueueWrite(
+      () => _writeCheckpoint(
+        MergeOperationCheckpoint(
+          operationId: plan.operationId,
+          planFingerprint: plan.fingerprint,
+          phase: MergeExecutionPhase.validatingPlan,
+          sourceCount: plan.sourceContactIds.length,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ),
+    );
   }
 
   @override
@@ -230,6 +251,9 @@ class PreferencesMergeOperationJournal implements MergeOperationJournal {
         current.sourceCount != sourceCount) {
       throw StateError('merge_checkpoint_identity_mismatch');
     }
+    if (phase.index < current.phase.index) {
+      throw StateError('merge_checkpoint_phase_regressed');
+    }
     final created = createdContactId?.trim();
     if (current.createdContactId != null &&
         created != null &&
@@ -243,17 +267,23 @@ class PreferencesMergeOperationJournal implements MergeOperationJournal {
     if (!deleted.containsAll(current.deletedSourceIds)) {
       throw StateError('merge_checkpoint_deleted_set_regressed');
     }
-    final next = MergeOperationCheckpoint(
-      operationId: operationId,
-      planFingerprint: planFingerprint,
-      phase: phase,
-      sourceCount: sourceCount,
-      createdContactId: created ?? current.createdContactId,
-      deletedSourceIds: deleted,
-      createdAt: current.createdAt,
-      updatedAt: _clock().toUtc(),
+    if (deleted.length > sourceCount) {
+      throw StateError('merge_checkpoint_deleted_set_invalid');
+    }
+    await _enqueueWrite(
+      () => _writeCheckpoint(
+        MergeOperationCheckpoint(
+          operationId: operationId,
+          planFingerprint: planFingerprint,
+          phase: phase,
+          sourceCount: sourceCount,
+          createdContactId: created ?? current.createdContactId,
+          deletedSourceIds: deleted,
+          createdAt: current.createdAt,
+          updatedAt: _clock().toUtc(),
+        ),
+      ),
     );
-    await _enqueueWrite(() => _writeCheckpoint(next));
   }
 
   @override
@@ -262,9 +292,10 @@ class PreferencesMergeOperationJournal implements MergeOperationJournal {
     if (id.isEmpty) return;
     await _enqueueWrite(() async {
       final pending = await _readCheckpointUnlocked();
-      if (pending != null && pending.operationId == id) {
-        await _preferences.remove(_checkpointKey);
+      if (pending != null && pending.operationId != id) {
+        throw StateError('merge_checkpoint_other_operation_pending');
       }
+      if (pending != null) await _preferences.remove(_checkpointKey);
       final completed = await _readCompletedUnlocked();
       completed.remove(id);
       completed.insert(0, id);
@@ -348,7 +379,10 @@ class PreferencesMergeOperationJournal implements MergeOperationJournal {
     final raw = await _preferences.getStringList(_completedKey) ?? <String>[];
     return raw
         .map((id) => id.trim())
-        .where((id) => id.isNotEmpty && id.length <= 128)
+        .where(
+          (id) =>
+              id.isNotEmpty && id.length <= MergePlan.maxOperationIdLength,
+        )
         .toSet()
         .take(_maximumCompletedEntries)
         .toList(growable: true);
@@ -420,11 +454,13 @@ class MergeEngineService {
     final completer = Completer<MergeReport>();
     _mutex = _mutex.catchError((Object _) {}).then((_) async {
       try {
-        completer.complete(await _executeLocked(
-          plan,
-          cancellationToken: cancellationToken,
-          onProgress: onProgress,
-        ));
+        completer.complete(
+          await _executeLocked(
+            plan,
+            cancellationToken: cancellationToken,
+            onProgress: onProgress,
+          ),
+        );
       } on Object catch (error, stackTrace) {
         completer.completeError(error, stackTrace);
       }
@@ -442,9 +478,14 @@ class MergeEngineService {
 
     try {
       if (await _journal.wasCompleted(plan.operationId)) {
-        return _report(plan, startedAt, MergeExecutionStatus.blocked,
-            'merge_operation_already_completed');
+        return _report(
+          plan,
+          startedAt,
+          MergeExecutionStatus.blocked,
+          'merge_operation_already_completed',
+        );
       }
+
       final pending = await _journal.readPending();
       if (pending != null) {
         if (pending.operationId != plan.operationId) {
@@ -466,84 +507,106 @@ class MergeEngineService {
           );
         }
         if (!pending.isPreMutation) {
-          return await _reconcilePending(plan, pending, startedAt);
+          return _reconcilePending(plan, pending, startedAt);
         }
         await _journal.complete(plan.operationId);
+      }
+
+      if (!plan.hasStableOperationIdentity ||
+          plan.displayNameFieldCount != 1 ||
+          plan.hasUnresolvedConflicts ||
+          plan.safetyBlockers.isNotEmpty) {
+        return _report(
+          plan,
+          startedAt,
+          MergeExecutionStatus.blocked,
+          'merge_plan_preflight_invalid',
+        );
       }
 
       await _journal.begin(plan);
       _progress(onProgress, MergeExecutionPhase.validatingPlan, 0.03);
       token.throwIfCancelled();
 
-      final structuralRecords = <String, ContactRecord>{
-        for (final id in plan.sourceContactIds)
-          id: ContactRecord(
-            nativeId: id,
-            hasStableNativeId: true,
-            name: const ContactNameParts(displayName: 'preflight'),
-            revision: const ContactRevisionInfo(fingerprint: 'preflight'),
-          ),
-      };
-      final structural = _validator.validate(plan, sourceRecords: structuralRecords);
-      if (!structural.isValid) {
+      _progress(onProgress, MergeExecutionPhase.rereadingSources, 0.10);
+      var live = await _readAndValidateLive(plan);
+      if (live == null) {
         return _finalizedReport(
           plan,
           startedAt,
-          MergeExecutionStatus.blocked,
-          'merge_plan_${structural.code.name}',
+          MergeExecutionStatus.preflightFailed,
+          'merge_live_preflight_failed',
         );
       }
 
-      _progress(onProgress, MergeExecutionPhase.rereadingSources, 0.1);
-      var live = await _readAndValidateLive(plan);
-      if (live == null) {
-        return _finalizedReport(plan, startedAt,
-            MergeExecutionStatus.preflightFailed, 'merge_live_preflight_failed');
-      }
-
       _progress(onProgress, MergeExecutionPhase.validatingBackup, 0.18);
-      var backup = await _backupController.validateMergeRecords(
-        live,
-        expectedBackupId: plan.backupId,
-        groupRevisionFingerprint: plan.groupRevisionFingerprint,
-      );
-      if (!backup.isValid ||
-          !backup.sourceContentValidated ||
-          backup.backupId != plan.backupId) {
-        return _finalizedReport(plan, startedAt,
-            MergeExecutionStatus.preflightFailed, 'merge_backup_preflight_failed');
+      var backup = await _validateBackup(plan, live);
+      if (!_backupValidationMatches(plan, backup)) {
+        return _finalizedReport(
+          plan,
+          startedAt,
+          MergeExecutionStatus.preflightFailed,
+          'merge_backup_preflight_failed',
+        );
       }
 
       token.throwIfCancelled();
-      _progress(onProgress, MergeExecutionPhase.requestingWritePermission, 0.24);
+      _progress(
+        onProgress,
+        MergeExecutionPhase.requestingWritePermission,
+        0.24,
+      );
       final hasPermission = await _withTimeout(
         _gateway.requestWritePermission(),
         'merge_write_permission_timeout',
       );
       if (!hasPermission) {
-        return _finalizedReport(plan, startedAt,
-            MergeExecutionStatus.permissionDenied,
-            'contacts_write_permission_denied');
+        return _finalizedReport(
+          plan,
+          startedAt,
+          MergeExecutionStatus.permissionDenied,
+          'contacts_write_permission_denied',
+        );
       }
 
       token.throwIfCancelled();
       live = await _readAndValidateLive(plan);
       if (live == null) {
-        return _finalizedReport(plan, startedAt,
-            MergeExecutionStatus.preflightFailed,
-            'merge_source_changed_after_permission');
+        return _finalizedReport(
+          plan,
+          startedAt,
+          MergeExecutionStatus.preflightFailed,
+          'merge_source_changed_after_permission',
+        );
       }
-      backup = await _backupController.validateMergeRecords(
-        live,
-        expectedBackupId: plan.backupId,
-        groupRevisionFingerprint: plan.groupRevisionFingerprint,
-      );
-      if (!backup.isValid ||
-          !backup.sourceContentValidated ||
-          backup.backupId != plan.backupId) {
-        return _finalizedReport(plan, startedAt,
-            MergeExecutionStatus.preflightFailed,
-            'merge_backup_changed_before_write');
+      backup = await _validateBackup(plan, live);
+      if (!_backupValidationMatches(plan, backup)) {
+        return _finalizedReport(
+          plan,
+          startedAt,
+          MergeExecutionStatus.preflightFailed,
+          'merge_backup_changed_before_write',
+        );
+      }
+
+      token.throwIfCancelled();
+      final finalLive = await _readAndValidateLive(plan);
+      if (finalLive == null) {
+        return _finalizedReport(
+          plan,
+          startedAt,
+          MergeExecutionStatus.preflightFailed,
+          'merge_source_changed_immediately_before_write',
+        );
+      }
+      final finalBackup = await _validateBackup(plan, finalLive);
+      if (!_backupValidationMatches(plan, finalBackup)) {
+        return _finalizedReport(
+          plan,
+          startedAt,
+          MergeExecutionStatus.preflightFailed,
+          'merge_backup_changed_immediately_before_write',
+        );
       }
 
       await _journal.checkpoint(
@@ -552,16 +615,20 @@ class MergeEngineService {
         phase: MergeExecutionPhase.pendingBeforeMutation,
         sourceCount: plan.sourceContactIds.length,
       );
-      return _mutate(plan, live, startedAt, token, onProgress);
+      return _mutate(plan, finalLive, startedAt, token, onProgress);
     } on _MergeCancelled {
       return _finalizedReport(
-          plan, startedAt, MergeExecutionStatus.cancelled, 'merge_cancelled');
-    } on TimeoutException {
+        plan,
+        startedAt,
+        MergeExecutionStatus.cancelled,
+        'merge_cancelled',
+      );
+    } on TimeoutException catch (error) {
       return _report(
         plan,
         startedAt,
         MergeExecutionStatus.reconcileRequired,
-        'merge_native_timeout_unknown_state',
+        _safeTimeoutCode(error),
         requiresReconcile: true,
       );
     } on StateError catch (error) {
@@ -573,25 +640,64 @@ class MergeEngineService {
         requiresReconcile: true,
       );
     } on Object {
-      return _report(plan, startedAt, MergeExecutionStatus.reconcileRequired,
-          'merge_unexpected_failure', requiresReconcile: true);
+      return _report(
+        plan,
+        startedAt,
+        MergeExecutionStatus.reconcileRequired,
+        'merge_unexpected_failure',
+        requiresReconcile: true,
+      );
     }
   }
 
-  Future<Map<String, ContactRecord>?> _readAndValidateLive(MergePlan plan) async {
+  Future<MergeBackupValidation> _validateBackup(
+    MergePlan plan,
+    Map<String, ContactRecord> live,
+  ) {
+    return _backupController.validateMergeRecords(
+      live,
+      expectedBackupId: plan.backupId,
+      groupRevisionFingerprint: plan.groupRevisionFingerprint,
+    );
+  }
+
+  bool _backupValidationMatches(
+    MergePlan plan,
+    MergeBackupValidation validation,
+  ) {
+    return validation.isValid &&
+        validation.sourceContentValidated &&
+        validation.backupId == plan.backupId &&
+        validation.groupRevisionFingerprint == plan.groupRevisionFingerprint &&
+        validation.sourceSnapshotFingerprint != null &&
+        validation.isFullAccess;
+  }
+
+  Future<Map<String, ContactRecord>?> _readAndValidateLive(
+    MergePlan plan,
+  ) async {
     final live = await _withTimeout(
       _gateway.readContacts(plan.sourceContactIds),
       'merge_source_read_timeout',
     );
     if (live.length != plan.sourceContactIds.length ||
-        !live.keys.toSet().containsAll(plan.sourceContactIds)) return null;
-    final validation = _validator.validate(plan, sourceRecords: live);
-    if (!validation.isValid) return null;
-    final snapshot = stableOpaqueId(
-      plan.sourceContactIds.map((id) => live[id]!.revision.fingerprint),
-      namespace: 'merge-snapshot',
+        !setEqualsStrings(live.keys.toSet(), plan.sourceContactIds.toSet())) {
+      return null;
+    }
+    final validation = _validator.validate(
+      plan,
+      sourceRecords: live,
+      expectedGroupFingerprint: plan.groupRevisionFingerprint,
+      now: _clock(),
     );
-    return snapshot == plan.sourceSnapshotFingerprint ? live : null;
+    if (!validation.isValid) return null;
+    return plan.matchesContext(
+      currentScanRevision: plan.scanRevision,
+      currentGroupFingerprint: plan.groupRevisionFingerprint,
+      currentSourceRecords: live,
+    )
+        ? live
+        : null;
   }
 
   Future<MergeReport> _mutate(
@@ -604,16 +710,23 @@ class MergeEngineService {
     token.enterCriticalPhase();
     String? createdId;
     final deleted = <String>[];
-    final skipped = <String>[];
+    final skipped = <String>[...plan.retainedSourceIds];
     final restored = <String>[];
     try {
       _progress(onProgress, MergeExecutionPhase.creatingContact, 0.34);
       final created = await _withTimeout(
-          _gateway.createFromPlan(plan), 'merge_create_timeout');
+        _gateway.createFromPlan(plan),
+        'merge_create_timeout',
+      );
       createdId = created.id.trim();
       if (createdId.isEmpty) {
-        return _report(plan, startedAt, MergeExecutionStatus.reconcileRequired,
-            'merge_created_id_empty_unknown_state', requiresReconcile: true);
+        return _report(
+          plan,
+          startedAt,
+          MergeExecutionStatus.reconcileRequired,
+          'merge_created_id_empty_unknown_state',
+          requiresReconcile: true,
+        );
       }
       await _journal.checkpoint(
         operationId: plan.operationId,
@@ -623,40 +736,95 @@ class MergeEngineService {
         createdContactId: createdId,
       );
 
-      _progress(onProgress, MergeExecutionPhase.verifyingCreatedContact, 0.46);
+      _progress(
+        onProgress,
+        MergeExecutionPhase.verifyingCreatedContact,
+        0.46,
+      );
       final createdValid = await _withTimeout(
         _gateway.verifyCreatedContact(createdId, plan),
         'merge_created_verification_timeout',
       );
       if (!createdValid) {
         final removed = await _rollbackCreated(createdId);
-        final report = _report(
+        if (removed) await _journal.complete(plan.operationId);
+        return _report(
           plan,
           startedAt,
-          removed ? MergeExecutionStatus.rollbackSucceeded : MergeExecutionStatus.rollbackFailed,
+          removed
+              ? MergeExecutionStatus.rollbackSucceeded
+              : MergeExecutionStatus.rollbackFailed,
           removed
               ? 'merge_created_verification_failed_rolled_back'
               : 'merge_created_verification_failed_rollback_failed',
           createdContactId: removed ? null : createdId,
+          skippedSourceIds: skipped,
           requiresReconcile: !removed,
         );
-        if (removed) await _journal.complete(plan.operationId);
-        return report;
       }
 
-      _progress(onProgress, MergeExecutionPhase.deletingSources, 0.56,
-          total: plan.sourceContactIds.length);
-      for (var index = 0; index < plan.sourceContactIds.length; index++) {
-        final id = plan.sourceContactIds[index];
-        final source = live[id]!;
-        if (!source.capabilities.canDelete) {
-          skipped.add(id);
-          continue;
+      if (plan.executionMode == MergeExecutionMode.copyOnly) {
+        final finalValid = await _verifyFinalState(
+          plan: plan,
+          live: live,
+          createdId: createdId,
+          deleted: const <String>{},
+          retained: plan.sourceContactIds.toSet(),
+        );
+        if (!finalValid) {
+          return _report(
+            plan,
+            startedAt,
+            MergeExecutionStatus.reconcileRequired,
+            'merge_copy_final_state_unknown',
+            createdContactId: createdId,
+            skippedSourceIds: plan.sourceContactIds,
+            requiresReconcile: true,
+          );
+        }
+        await _journal.complete(plan.operationId);
+        _progress(onProgress, MergeExecutionPhase.completed, 1);
+        return _report(
+          plan,
+          startedAt,
+          MergeExecutionStatus.success,
+          null,
+          createdContactId: createdId,
+          skippedSourceIds: plan.sourceContactIds,
+        );
+      }
+
+      _progress(
+        onProgress,
+        MergeExecutionPhase.deletingSources,
+        0.56,
+        total: plan.deletionTargetIds.length,
+      );
+      for (var index = 0; index < plan.deletionTargetIds.length; index++) {
+        final id = plan.deletionTargetIds[index];
+        final source = live[id];
+        if (source == null || !source.capabilities.isFullyWritable) {
+          return _rollbackMutation(
+            plan: plan,
+            live: live,
+            startedAt: startedAt,
+            createdId: createdId,
+            deleted: deleted,
+            skipped: skipped,
+            restored: restored,
+            errorCode: 'merge_delete_target_not_writable',
+            onProgress: onProgress,
+          );
         }
         try {
-          await _withTimeout(_gateway.deleteContact(id), 'merge_delete_timeout');
+          await _withTimeout(
+            _gateway.deleteContact(id),
+            'merge_delete_timeout',
+          );
           final exists = await _withTimeout(
-              _gateway.contactExists(id), 'merge_delete_verify_timeout');
+            _gateway.contactExists(id),
+            'merge_delete_verify_timeout',
+          );
           if (exists) throw StateError('merge_source_delete_not_applied');
           deleted.add(id);
           await _journal.checkpoint(
@@ -667,45 +835,36 @@ class MergeEngineService {
             createdContactId: createdId,
             deletedSourceIds: deleted,
           );
-        } on TimeoutException {
+        } on TimeoutException catch (error) {
           return _report(
             plan,
             startedAt,
             MergeExecutionStatus.reconcileRequired,
-            'merge_delete_timeout_unknown_state',
+            _safeTimeoutCode(error),
             createdContactId: createdId,
             deletedSourceIds: deleted,
             skippedSourceIds: skipped,
             requiresReconcile: true,
           );
         } on Object {
-          final sourcesRestored = await _restoreDeleted(live, deleted, restored, onProgress);
-          final createdRemoved = await _rollbackCreated(createdId);
-          final rollbackComplete = sourcesRestored && createdRemoved;
-          final report = _report(
-            plan,
-            startedAt,
-            rollbackComplete
-                ? MergeExecutionStatus.rollbackSucceeded
-                : MergeExecutionStatus.rollbackFailed,
-            rollbackComplete
-                ? 'merge_delete_failed_rolled_back'
-                : 'merge_delete_failed_rollback_incomplete',
-            createdContactId: createdRemoved ? null : createdId,
-            deletedSourceIds: deleted,
-            skippedSourceIds: skipped,
-            restoredSourceIds: restored,
-            requiresReconcile: !rollbackComplete,
+          return _rollbackMutation(
+            plan: plan,
+            live: live,
+            startedAt: startedAt,
+            createdId: createdId,
+            deleted: deleted,
+            skipped: skipped,
+            restored: restored,
+            errorCode: 'merge_delete_failed',
+            onProgress: onProgress,
           );
-          if (rollbackComplete) await _journal.complete(plan.operationId);
-          return report;
         }
         _progress(
           onProgress,
           MergeExecutionPhase.deletingSources,
-          0.56 + 0.25 * ((index + 1) / plan.sourceContactIds.length),
+          0.56 + 0.25 * ((index + 1) / plan.deletionTargetIds.length),
           processed: index + 1,
-          total: plan.sourceContactIds.length,
+          total: plan.deletionTargetIds.length,
         );
       }
 
@@ -723,7 +882,7 @@ class MergeEngineService {
         live: live,
         createdId: createdId,
         deleted: deleted.toSet(),
-        skipped: skipped.toSet(),
+        retained: plan.retainedSourceIds.toSet(),
       );
       if (!finalValid) {
         return _report(
@@ -738,24 +897,23 @@ class MergeEngineService {
         );
       }
 
-      final report = _report(
+      await _journal.complete(plan.operationId);
+      _progress(onProgress, MergeExecutionPhase.completed, 1);
+      return _report(
         plan,
         startedAt,
-        skipped.isEmpty ? MergeExecutionStatus.success : MergeExecutionStatus.partialFailure,
-        skipped.isEmpty ? null : 'merge_read_only_sources_skipped',
+        MergeExecutionStatus.success,
+        null,
         createdContactId: createdId,
         deletedSourceIds: deleted,
         skippedSourceIds: skipped,
       );
-      await _journal.complete(plan.operationId);
-      _progress(onProgress, MergeExecutionPhase.completed, 1);
-      return report;
-    } on TimeoutException {
+    } on TimeoutException catch (error) {
       return _report(
         plan,
         startedAt,
         MergeExecutionStatus.reconcileRequired,
-        'merge_native_timeout_unknown_state',
+        _safeTimeoutCode(error),
         createdContactId: createdId,
         deletedSourceIds: deleted,
         skippedSourceIds: skipped,
@@ -779,6 +937,43 @@ class MergeEngineService {
     }
   }
 
+  Future<MergeReport> _rollbackMutation({
+    required MergePlan plan,
+    required Map<String, ContactRecord> live,
+    required DateTime startedAt,
+    required String createdId,
+    required List<String> deleted,
+    required List<String> skipped,
+    required List<String> restored,
+    required String errorCode,
+    required void Function(MergeProgress progress)? onProgress,
+  }) async {
+    final sourcesRestored = await _restoreDeleted(
+      live,
+      deleted,
+      restored,
+      onProgress,
+    );
+    final createdRemoved = await _rollbackCreated(createdId);
+    final rollbackComplete = sourcesRestored && createdRemoved;
+    if (rollbackComplete) await _journal.complete(plan.operationId);
+    return _report(
+      plan,
+      startedAt,
+      rollbackComplete
+          ? MergeExecutionStatus.rollbackSucceeded
+          : MergeExecutionStatus.rollbackFailed,
+      rollbackComplete
+          ? '${errorCode}_rolled_back'
+          : '${errorCode}_rollback_incomplete',
+      createdContactId: createdRemoved ? null : createdId,
+      deletedSourceIds: deleted,
+      skippedSourceIds: skipped,
+      restoredSourceIds: restored,
+      requiresReconcile: !rollbackComplete,
+    );
+  }
+
   Future<MergeReport> _reconcilePending(
     MergePlan plan,
     MergeOperationCheckpoint checkpoint,
@@ -786,12 +981,16 @@ class MergeEngineService {
   ) async {
     final createdId = checkpoint.createdContactId;
     final createdExists = createdId != null &&
-        await _withTimeout(_gateway.contactExists(createdId),
-            'merge_reconcile_created_timeout');
+        await _withTimeout(
+          _gateway.contactExists(createdId),
+          'merge_reconcile_created_timeout',
+        );
     final sourceExists = <String, bool>{};
     for (final id in plan.sourceContactIds) {
       sourceExists[id] = await _withTimeout(
-          _gateway.contactExists(id), 'merge_reconcile_source_timeout');
+        _gateway.contactExists(id),
+        'merge_reconcile_source_timeout',
+      );
     }
 
     if (!createdExists && sourceExists.values.every((exists) => exists)) {
@@ -806,25 +1005,41 @@ class MergeEngineService {
 
     if (createdExists && createdId != null) {
       final createdValid = await _withTimeout(
-          _gateway.verifyCreatedContact(createdId, plan),
-          'merge_reconcile_verify_created_timeout');
-      final deleted = checkpoint.deletedSourceIds.toSet();
-      final deletedAbsent = deleted.every((id) => sourceExists[id] == false);
-      final untouchedPresent = plan.sourceContactIds
-          .where((id) => !deleted.contains(id))
+        _gateway.verifyCreatedContact(createdId, plan),
+        'merge_reconcile_verify_created_timeout',
+      );
+      final expectedDeleted = checkpoint.deletedSourceIds.toSet();
+      final deletedAbsent =
+          expectedDeleted.every((id) => sourceExists[id] == false);
+      final retainedPresent = plan.retainedSourceIds.every(
+        (id) => sourceExists[id] == true,
+      );
+      final undeletedTargetsPresent = plan.deletionTargetIds
+          .where((id) => !expectedDeleted.contains(id))
           .every((id) => sourceExists[id] == true);
+      final targetSetValid = expectedDeleted.every(
+        plan.deletionTargetIds.contains,
+      );
+      final finalPhase =
+          checkpoint.phase == MergeExecutionPhase.verifyingFinalState;
+      final copyOnlyFinal = plan.executionMode == MergeExecutionMode.copyOnly &&
+          expectedDeleted.isEmpty &&
+          sourceExists.values.every((exists) => exists);
       if (createdValid &&
+          targetSetValid &&
           deletedAbsent &&
-          untouchedPresent &&
-          checkpoint.phase == MergeExecutionPhase.verifyingFinalState) {
+          retainedPresent &&
+          undeletedTargetsPresent &&
+          (finalPhase || copyOnlyFinal)) {
         await _journal.complete(plan.operationId);
         return _report(
           plan,
           startedAt,
-          MergeExecutionStatus.partialFailure,
-          'merge_reconcile_proved_final_state',
+          MergeExecutionStatus.success,
+          null,
           createdContactId: createdId,
           deletedSourceIds: checkpoint.deletedSourceIds,
+          skippedSourceIds: plan.retainedSourceIds,
         );
       }
     }
@@ -836,6 +1051,7 @@ class MergeEngineService {
       'merge_pending_operation_requires_reconcile',
       createdContactId: createdExists ? createdId : null,
       deletedSourceIds: checkpoint.deletedSourceIds,
+      skippedSourceIds: plan.retainedSourceIds,
       requiresReconcile: true,
     );
   }
@@ -845,28 +1061,48 @@ class MergeEngineService {
     required Map<String, ContactRecord> live,
     required String createdId,
     required Set<String> deleted,
-    required Set<String> skipped,
+    required Set<String> retained,
   }) async {
-    if (!await _withTimeout(_gateway.verifyCreatedContact(createdId, plan),
-        'merge_final_created_timeout')) return false;
+    if (!await _withTimeout(
+      _gateway.verifyCreatedContact(createdId, plan),
+      'merge_final_created_timeout',
+    )) {
+      return false;
+    }
+    if (!setEqualsStrings(deleted, plan.deletionTargetIds.toSet()) &&
+        plan.isDestructive) {
+      return false;
+    }
     for (final id in deleted) {
       if (await _withTimeout(
-          _gateway.contactExists(id), 'merge_final_deleted_timeout')) return false;
+        _gateway.contactExists(id),
+        'merge_final_deleted_timeout',
+      )) {
+        return false;
+      }
     }
-    for (final id in skipped) {
+    for (final id in retained) {
       if (!await _withTimeout(
-          _gateway.contactExists(id), 'merge_final_skipped_timeout')) return false;
-      final source = live[id];
-      if (source == null || source.capabilities.canDelete) return false;
+        _gateway.contactExists(id),
+        'merge_final_retained_timeout',
+      )) {
+        return false;
+      }
+      if (!live.containsKey(id)) return false;
     }
     return true;
   }
 
   Future<bool> _rollbackCreated(String id) async {
     try {
-      await _withTimeout(_gateway.deleteContact(id), 'merge_rollback_timeout');
+      await _withTimeout(
+        _gateway.deleteContact(id),
+        'merge_rollback_timeout',
+      );
       return !(await _withTimeout(
-          _gateway.contactExists(id), 'merge_rollback_verify_timeout'));
+        _gateway.contactExists(id),
+        'merge_rollback_verify_timeout',
+      ));
     } on Object {
       return false;
     }
@@ -879,8 +1115,12 @@ class MergeEngineService {
     void Function(MergeProgress progress)? onProgress,
   ) async {
     var allRestored = true;
-    _progress(onProgress, MergeExecutionPhase.restoringSources, 0.72,
-        total: deleted.length);
+    _progress(
+      onProgress,
+      MergeExecutionPhase.restoringSources,
+      0.72,
+      total: deleted.length,
+    );
     for (var index = deleted.length - 1; index >= 0; index--) {
       final id = deleted[index];
       final source = live[id];
@@ -890,10 +1130,14 @@ class MergeEngineService {
       }
       try {
         final restoredOk = await _withTimeout(
-            _gateway.restoreContact(source), 'merge_restore_timeout');
+          _gateway.restoreContact(source),
+          'merge_restore_timeout',
+        );
         final verified = restoredOk &&
-            await _withTimeout(_gateway.verifyRestoredContact(source),
-                'merge_restore_verify_timeout');
+            await _withTimeout(
+              _gateway.verifyRestoredContact(source),
+              'merge_restore_verify_timeout',
+            );
         if (verified) {
           restored.add(id);
         } else {
@@ -902,6 +1146,13 @@ class MergeEngineService {
       } on Object {
         allRestored = false;
       }
+      _progress(
+        onProgress,
+        MergeExecutionPhase.restoringSources,
+        0.72 + 0.12 * ((deleted.length - index) / deleted.length),
+        processed: deleted.length - index,
+        total: deleted.length,
+      );
     }
     return allRestored;
   }
@@ -925,10 +1176,21 @@ class MergeEngineService {
     }
   }
 
+  String _safeTimeoutCode(TimeoutException error) {
+    final message = error.message;
+    if (message != null &&
+        RegExp(r'^[a-z0-9_]{1,96}$').hasMatch(message)) {
+      return message;
+    }
+    return 'merge_native_timeout_unknown_state';
+  }
+
   String _safeStateErrorCode(StateError error, {required String fallback}) {
     final message = error.message;
     if (message is String &&
-        RegExp(r'^[a-z0-9_]{1,96}$').hasMatch(message)) return message;
+        RegExp(r'^[a-z0-9_]{1,96}$').hasMatch(message)) {
+      return message;
+    }
     return fallback;
   }
 
@@ -964,12 +1226,14 @@ class MergeEngineService {
     int processed = 0,
     int total = 0,
   }) {
-    callback?.call(MergeProgress(
-      phase: phase,
-      ratio: ratio.clamp(0, 1).toDouble(),
-      processed: processed,
-      total: total,
-    ));
+    callback?.call(
+      MergeProgress(
+        phase: phase,
+        ratio: ratio.clamp(0, 1).toDouble(),
+        processed: processed,
+        total: total,
+      ),
+    );
   }
 }
 
