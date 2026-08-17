@@ -14,6 +14,13 @@ import 'core/theme/theme_provider.dart';
 import 'features/backup/backup_controller.dart';
 import 'features/dashboard/scan_controller.dart';
 import 'features/duplicates/contact_copy_controller.dart';
+import 'features/duplicates/merge_engine_service.dart';
+import 'features/duplicates/merge_operation_controller.dart';
+import 'features/duplicates/native_merge_contact_gateway.dart';
+import 'features/history/history_controller.dart';
+import 'features/history/operation_history.dart';
+import 'features/restore/restore_controller.dart';
+import 'features/restore/restore_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +28,17 @@ void main() {
   runApp(
     MultiProvider(
       providers: <SingleChildWidget>[
+        Provider<ContactBackupService>(
+          create: (_) => ProtectedContactBackupService(
+            delegate: EncryptedContactBackupService(),
+          ),
+        ),
+        Provider<OperationHistoryRepository>(
+          create: (_) => PreferencesOperationHistoryRepository(),
+        ),
+        Provider<MergeContactGateway>(
+          create: (_) => NativeMergeContactGateway(),
+        ),
         ChangeNotifierProvider<ThemeProvider>(
           create: (_) => ThemeProvider(),
         ),
@@ -28,11 +46,43 @@ void main() {
           create: (_) => ScanController(NativeContactsScanService()),
         ),
         ChangeNotifierProvider<BackupController>(
-          create: (_) {
+          create: (context) {
             final controller = BackupController(
-              ProtectedContactBackupService(
-                delegate: EncryptedContactBackupService(),
-              ),
+              context.read<ContactBackupService>(),
+            );
+            unawaited(controller.load());
+            return controller;
+          },
+        ),
+        Provider<MergeEngineService>(
+          create: (context) => MergeEngineService(
+            gateway: context.read<MergeContactGateway>(),
+            backupController: context.read<BackupController>(),
+          ),
+        ),
+        Provider<ContactRestoreService>(
+          create: (context) => ContactRestoreService(
+            backupService: context.read<ContactBackupService>(),
+          ),
+        ),
+        ChangeNotifierProvider<MergeOperationController>(
+          create: (context) => MergeOperationController(
+            engine: context.read<MergeEngineService>(),
+            history: context.read<OperationHistoryRepository>(),
+            scanController: context.read<ScanController>(),
+          ),
+        ),
+        ChangeNotifierProvider<RestoreController>(
+          create: (context) => RestoreController(
+            service: context.read<ContactRestoreService>(),
+            history: context.read<OperationHistoryRepository>(),
+            scanController: context.read<ScanController>(),
+          ),
+        ),
+        ChangeNotifierProvider<HistoryController>(
+          create: (context) {
+            final controller = HistoryController(
+              repository: context.read<OperationHistoryRepository>(),
             );
             unawaited(controller.load());
             return controller;
