@@ -32,6 +32,35 @@ void main() {
     expect(delegate.deletedIds, <String>['100']);
   });
 
+  test('raporteaza separat esecul cleanupului dupa protectie', () async {
+    final backup = ContactBackup(
+      id: '100',
+      createdAt: DateTime.utc(2026, 7, 27),
+      contactCount: 2,
+      accessScope: BackupAccessScope.full,
+      isValid: true,
+    );
+    final delegate = _FakeBackupService(
+      createdBackup: backup,
+      failDelete: true,
+    );
+    final service = ProtectedContactBackupService(
+      delegate: delegate,
+      systemProtection: _FakeSystemProtection(shouldFail: true),
+    );
+
+    await expectLater(
+      service.createBackup(),
+      throwsA(
+        isA<ContactBackupException>().having(
+          (error) => error.code,
+          'code',
+          'backup_system_protection_cleanup_failed',
+        ),
+      ),
+    );
+  });
+
   test('pastreaza backupul cand protectia sistemului reuseste', () async {
     final backup = ContactBackup(
       id: '101',
@@ -99,11 +128,13 @@ class _FakeSystemProtection implements BackupSystemProtection {
 class _FakeBackupService implements ContactBackupService {
   final ContactBackup? createdBackup;
   final List<ContactBackup> listedBackups;
+  final bool failDelete;
   final List<String> deletedIds = <String>[];
 
   _FakeBackupService({
     this.createdBackup,
     this.listedBackups = const <ContactBackup>[],
+    this.failDelete = false,
   });
 
   @override
@@ -117,6 +148,9 @@ class _FakeBackupService implements ContactBackupService {
 
   @override
   Future<void> deleteBackup(String id) async {
+    if (failDelete) {
+      throw const ContactBackupException('backup_delete_failed');
+    }
     deletedIds.add(id);
   }
 

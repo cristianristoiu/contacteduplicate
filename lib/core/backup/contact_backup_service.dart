@@ -66,6 +66,7 @@ class SecureBackupKeyStore implements BackupKeyStore {
 
   final FlutterSecureStorage _storage;
   final AesGcm _algorithm;
+  Future<SecretKey>? _inFlightRequest;
 
   SecureBackupKeyStore({
     FlutterSecureStorage? storage,
@@ -74,10 +75,31 @@ class SecureBackupKeyStore implements BackupKeyStore {
         _algorithm = algorithm ?? AesGcm.with256bits();
 
   @override
-  Future<SecretKey> getOrCreateKey() async {
+  Future<SecretKey> getOrCreateKey() {
+    final existingRequest = _inFlightRequest;
+    if (existingRequest != null) {
+      return existingRequest;
+    }
+
+    late final Future<SecretKey> request;
+    request = _loadOrCreateKey().whenComplete(() {
+      if (identical(_inFlightRequest, request)) {
+        _inFlightRequest = null;
+      }
+    });
+    _inFlightRequest = request;
+    return request;
+  }
+
+  Future<SecretKey> _loadOrCreateKey() async {
     final encodedKey = await _storage.read(key: _storageKey);
     if (encodedKey != null) {
-      final keyBytes = base64Decode(encodedKey);
+      final List<int> keyBytes;
+      try {
+        keyBytes = base64Decode(encodedKey);
+      } on FormatException {
+        throw const ContactBackupException('backup_key_invalid');
+      }
       if (keyBytes.length != 32) {
         throw const ContactBackupException('backup_key_invalid');
       }
@@ -102,6 +124,9 @@ typedef BackupClock = DateTime Function();
 class EncryptedContactBackupService implements ContactBackupService {
   static const int _formatVersion = 1;
   static const int _schemaVersion = 1;
+  static const int _maximumBackupFileBytes = 128 * 1024 * 1024;
+  static const int _aesGcmNonceBytes = 12;
+  static const int _aesGcmMacBytes = 16;
   static const String _directoryName = 'contact_backups';
   static const String _filePrefix = 'contacte-';
   static const String _fileExtension = '.cdbk';
@@ -138,7 +163,7 @@ class EncryptedContactBackupService implements ContactBackupService {
       final backups = <ContactBackup>[];
 
       await for (final entity in directory.list(followLinks: false)) {
-        if (entity is! File || !entity.path.endsWith(_fileExtension)) {
+        if (entity is! File || !_isBackupFile(entity)) {
           continue;
         }
         backups.add(await _inspectFile(entity));
@@ -265,6 +290,11 @@ class EncryptedContactBackupService implements ContactBackupService {
 
   Future<ContactBackupData> _readFile(File file) async {
     try {
+      final stat = await file.stat();
+      if (stat.size > _maximumBackupFileBytes) {
+        throw const ContactBackupException('backup_file_too_large');
+      }
+
       final rawEnvelope = jsonDecode(await file.readAsString());
       if (rawEnvelope is! Map<String, dynamic>) {
         throw const ContactBackupException('backup_format_invalid');
@@ -287,8 +317,11 @@ class EncryptedContactBackupService implements ContactBackupService {
           contactCount < 0 ||
           accessScopeValue is! String ||
           nonceValue is! String ||
+          nonceValue.trim().isEmpty ||
           cipherTextValue is! String ||
-          macValue is! String) {
+          cipherTextValue.trim().isEmpty ||
+          macValue is! String ||
+          macValue.trim().isEmpty) {
         throw const ContactBackupException('backup_format_invalid');
       }
 
@@ -302,10 +335,26 @@ class EncryptedContactBackupService implements ContactBackupService {
         throw const ContactBackupException('backup_format_invalid');
       }
 
+      final List<int> nonceBytes;
+      final List<int> cipherTextBytes;
+      final List<int> macBytes;
+      try {
+        nonceBytes = base64Decode(nonceValue);
+        cipherTextBytes = base64Decode(cipherTextValue);
+        macBytes = base64Decode(macValue);
+      } on FormatException {
+        throw const ContactBackupException('backup_format_invalid');
+      }
+      if (nonceBytes.length != _aesGcmNonceBytes ||
+          cipherTextBytes.isEmpty ||
+          macBytes.length != _aesGcmMacBytes) {
+        throw const ContactBackupException('backup_format_invalid');
+      }
+
       final secretBox = SecretBox(
-        base64Decode(cipherTextValue),
-        nonce: base64Decode(nonceValue),
-        mac: Mac(base64Decode(macValue)),
+        cipherTextBytes,
+        nonce: nonceBytes,
+        mac: Mac(macBytes),
       );
       final secretKey = await _keyStore.getOrCreateKey();
       final clearBytes = await _algorithm.decrypt(
@@ -328,10 +377,13 @@ class EncryptedContactBackupService implements ContactBackupService {
       }
 
       final contacts = rawContacts.map((rawContact) {
-        if (rawContact is! Map) {
+        if (rawContact is! Map ||
+            rawContact.keys.any((key) => key is! String)) {
           throw const ContactBackupException('backup_contact_invalid');
         }
-        return Contact.fromJson(rawContact);
+        return Contact.fromJson(
+          Map<String, dynamic>.from(rawContact),
+        );
       }).toList(growable: false);
 
       final backup = ContactBackup(
@@ -396,15 +448,11 @@ class EncryptedContactBackupService implements ContactBackupService {
 
   String _idFromPath(String path) {
     final fileName = path.split(Platform.pathSeparator).last;
-    if (fileName.startsWith(_filePrefix) &&
-        fileName.endsWith(_fileExtension)) {
-      return fileName.substring(
-        _filePrefix.length,
-        fileName.length - _fileExtension.length,
-      );
-    }
-    return 'invalid';
+    final match = RegExp(r'^contacte-(\d+)\.cdbk$').firstMatch(fileName);
+    return match?.group(1) ?? 'invalid';
   }
+
+  bool _isBackupFile(File file) => _idFromPath(file.path) != 'invalid';
 
   bool _isValidId(String id) => RegExp(r'^\d+$').hasMatch(id);
 

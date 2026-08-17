@@ -86,7 +86,9 @@ class ProtectedContactBackupService implements ContactBackupService {
       try {
         await _delegate.deleteBackup(backup.id);
       } on Object {
-        // Esecul stergerii nu trebuie sa ascunda eroarea de confidentialitate.
+        throw const ContactBackupException(
+          'backup_system_protection_cleanup_failed',
+        );
       }
       throw const ContactBackupException(
         'backup_system_protection_failed',

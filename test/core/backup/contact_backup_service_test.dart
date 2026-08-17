@@ -41,11 +41,7 @@ void main() {
 
   test('scrie datele criptat si le poate valida integral', () async {
     final backup = await service.createBackup();
-    final files = await temporaryDirectory
-        .list(recursive: true)
-        .where((entity) => entity is File && entity.path.endsWith('.cdbk'))
-        .cast<File>()
-        .toList();
+    final files = await _backupFiles(temporaryDirectory);
 
     expect(files, hasLength(1));
     final rawFile = await files.single.readAsString();
@@ -66,11 +62,7 @@ void main() {
 
   test('detecteaza modificarea continutului criptat', () async {
     final backup = await service.createBackup();
-    final file = await temporaryDirectory
-        .list(recursive: true)
-        .where((entity) => entity is File && entity.path.endsWith('.cdbk'))
-        .cast<File>()
-        .single;
+    final file = (await _backupFiles(temporaryDirectory)).single;
     final envelope = jsonDecode(await file.readAsString())
         as Map<String, dynamic>;
     final cipherText = base64Decode(envelope['cipherText'] as String);
@@ -93,6 +85,59 @@ void main() {
     );
   });
 
+  test('respinge campurile criptografice goale sau cu lungime invalida', () async {
+    final backup = await service.createBackup();
+    final file = (await _backupFiles(temporaryDirectory)).single;
+    final envelope = jsonDecode(await file.readAsString())
+        as Map<String, dynamic>;
+    envelope['nonce'] = base64Encode(<int>[1, 2, 3]);
+    await file.writeAsString(jsonEncode(envelope), flush: true);
+
+    await expectLater(
+      service.readBackup(backup.id),
+      throwsA(
+        isA<ContactBackupException>().having(
+          (error) => error.code,
+          'code',
+          'backup_format_invalid',
+        ),
+      ),
+    );
+  });
+
+  test('ignora fisierele care nu respecta numele canonic de backup', () async {
+    await File(
+      '${temporaryDirectory.path}${Platform.pathSeparator}copie-straina.cdbk',
+    ).writeAsString('{}');
+    await File(
+      '${temporaryDirectory.path}${Platform.pathSeparator}contacte-abc.cdbk',
+    ).writeAsString('{}');
+
+    final backups = await service.listBackups();
+
+    expect(backups, isEmpty);
+  });
+
+  test('respinge backupurile locale supradimensionate inainte de citire', () async {
+    final file = File(
+      '${temporaryDirectory.path}${Platform.pathSeparator}contacte-999.cdbk',
+    );
+    final handle = file.openSync(mode: FileMode.write);
+    handle.truncateSync(128 * 1024 * 1024 + 1);
+    handle.closeSync();
+
+    await expectLater(
+      service.readBackup('999'),
+      throwsA(
+        isA<ContactBackupException>().having(
+          (error) => error.code,
+          'code',
+          'backup_file_too_large',
+        ),
+      ),
+    );
+  });
+
   test('marcheaza backupul partial pentru acces limitat', () async {
     final limitedService = EncryptedContactBackupService(
       keyStore: _MemoryBackupKeyStore(
@@ -110,6 +155,14 @@ void main() {
     expect(backup.contactCount, 0);
     expect(backup.isValid, isTrue);
   });
+}
+
+Future<List<File>> _backupFiles(Directory directory) {
+  return directory
+      .list(recursive: true)
+      .where((entity) => entity is File && entity.path.endsWith('.cdbk'))
+      .cast<File>()
+      .toList();
 }
 
 class _MemoryBackupKeyStore implements BackupKeyStore {
