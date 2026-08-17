@@ -68,6 +68,7 @@ void main() {
         ChangeNotifierProvider<MergeOperationController>(
           create: (context) => MergeOperationController(
             engine: context.read<MergeEngineService>(),
+            gateway: context.read<MergeContactGateway>(),
             history: context.read<OperationHistoryRepository>(),
             scanController: context.read<ScanController>(),
           ),
