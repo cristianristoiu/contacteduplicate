@@ -21,6 +21,7 @@ import 'features/duplicates/merge_operation_controller.dart';
 import 'features/duplicates/native_merge_contact_gateway.dart';
 import 'features/duplicates/strict_merge_plan_validator.dart';
 import 'features/history/history_controller.dart';
+import 'features/history/integrity_operation_history_repository.dart';
 import 'features/history/operation_history.dart';
 import 'features/restore/restore_controller.dart';
 import 'features/restore/restore_service.dart';
@@ -40,7 +41,7 @@ void main() {
           ),
         ),
         Provider<OperationHistoryRepository>(
-          create: (_) => PreferencesOperationHistoryRepository(),
+          create: (_) => IntegrityOperationHistoryRepository(),
         ),
         Provider<MergeContactGateway>(
           create: (_) => NativeMergeContactGateway(),
