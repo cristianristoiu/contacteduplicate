@@ -55,7 +55,7 @@ class _HistoryError extends StatelessWidget {
       title: 'Istoricul nu poate fi citit',
       description:
           'Datele locale ale operatiilor nu au putut fi incarcate. Agenda nu este modificata de aceasta eroare.',
-      primaryButton: FilledButton.icon(
+      action: FilledButton.icon(
         onPressed: () => unawaited(controller.load()),
         icon: const Icon(Icons.refresh_rounded),
         label: const Text('Reincearca'),
@@ -87,7 +87,7 @@ class _HistoryContent extends StatelessWidget {
             description: controller.hasFilters
                 ? 'Elimina filtrele pentru a vedea toate operatiile locale.'
                 : 'Operatiile de fuziune, restaurare si undo vor aparea aici dupa executie.',
-            primaryButton: controller.hasFilters
+            action: controller.hasFilters
                 ? FilledButton.icon(
                     onPressed: controller.clearFilters,
                     icon: const Icon(Icons.filter_alt_off_rounded),
