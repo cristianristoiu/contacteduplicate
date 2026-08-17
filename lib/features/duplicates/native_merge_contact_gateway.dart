@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
 import '../../core/contacts/contact_data_normalizer.dart';
@@ -6,6 +9,10 @@ import 'merge_engine_service.dart';
 import 'merge_plan.dart';
 
 class NativeMergeContactGateway implements MergeContactGateway {
+  static const MethodChannel _contactsChannel = MethodChannel(
+    'ro.contacteduplicate.app/contacts',
+  );
+
   final ContactDataNormalizer _normalizer;
 
   NativeMergeContactGateway({ContactDataNormalizer? normalizer})
@@ -39,7 +46,12 @@ class NativeMergeContactGateway implements MergeContactGateway {
         },
       );
       if (contact != null) {
-        result[id] = _mapContact(contact, expectedId: id);
+        final nativeMetadata = await _readNativeMetadata(id);
+        result[id] = _mapContact(
+          contact,
+          expectedId: id,
+          nativeMetadata: nativeMetadata,
+        );
       }
     }
     return result;
@@ -171,8 +183,6 @@ class NativeMergeContactGateway implements MergeContactGateway {
 
   @override
   Future<bool> restoreContact(ContactRecord record) async {
-    // Rollbackul distructiv ramane blocat pentru inregistrari care contin
-    // proprietati pe care gatewayul curent nu le poate reconstrui integral.
     if (record.notesAvailable ||
         record.photoAvailable ||
         record.addresses.isNotEmpty ||
@@ -197,12 +207,82 @@ class NativeMergeContactGateway implements MergeContactGateway {
 
   @override
   Future<bool> verifyRestoredContact(ContactRecord record) async {
-    // Contactele recreate primesc alt ID nativ; fara ID-ul nou gatewayul nu poate
-    // demonstra identitatea exacta, deci nu declara rollbackul verificat.
     return false;
   }
 
-  ContactRecord _mapContact(Contact contact, {required String expectedId}) {
+  Future<_NativeContactMetadata> _readNativeMetadata(String contactId) async {
+    if (!Platform.isAndroid) return const _NativeContactMetadata();
+    try {
+      final raw = await _contactsChannel.invokeMapMethod<String, Object?>(
+        'getContactCapabilities',
+        <String, Object?>{'contactId': contactId},
+      );
+      if (raw == null || raw['found'] != true) {
+        return const _NativeContactMetadata();
+      }
+      final update = _capabilityFromName(raw['update']);
+      final delete = _capabilityFromName(raw['delete']);
+      final accountTypes = _stringList(raw['accountTypes']);
+      final rawContactIds = _stringList(raw['rawContactIds']);
+      final sourceKind = _sourceKind(accountTypes);
+      return _NativeContactMetadata(
+        capabilities: ContactCapabilities(
+          update: update,
+          delete: delete,
+          limitationCode: raw['hasMixedCapabilities'] == true
+              ? 'mixed_raw_contact_capabilities'
+              : null,
+        ),
+        source: ContactSourceInfo(
+          sourceId: rawContactIds.length == 1 ? rawContactIds.single : '',
+          sourceName: accountTypes.length == 1 ? accountTypes.single : '',
+          kind: sourceKind,
+        ),
+      );
+    } on PlatformException {
+      return const _NativeContactMetadata();
+    } on Object {
+      return const _NativeContactMetadata();
+    }
+  }
+
+  ContactAccessCapability _capabilityFromName(Object? value) {
+    return switch (value) {
+      'writable' => ContactAccessCapability.writable,
+      'readOnly' => ContactAccessCapability.readOnly,
+      _ => ContactAccessCapability.unknown,
+    };
+  }
+
+  List<String> _stringList(Object? value) {
+    if (value is! List) return const <String>[];
+    return List<String>.unmodifiable(
+      value
+          .whereType<String>()
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort(),
+    );
+  }
+
+  ContactSourceKind _sourceKind(List<String> accountTypes) {
+    final joined = accountTypes.join(' ').toLowerCase();
+    if (joined.contains('google')) return ContactSourceKind.google;
+    if (joined.contains('exchange')) return ContactSourceKind.exchange;
+    if (joined.contains('icloud') || joined.contains('apple')) {
+      return ContactSourceKind.iCloud;
+    }
+    if (accountTypes.isEmpty) return ContactSourceKind.unknown;
+    return ContactSourceKind.other;
+  }
+
+  ContactRecord _mapContact(
+    Contact contact, {
+    required String expectedId,
+    _NativeContactMetadata nativeMetadata = const _NativeContactMetadata(),
+  }) {
     final rawId = contact.id?.trim() ?? '';
     final nativeId = rawId.isNotEmpty ? rawId : expectedId;
     final displayName = _normalizer.normalizeDisplayName(contact.displayName ?? '');
@@ -303,7 +383,8 @@ class NativeMergeContactGateway implements MergeContactGateway {
       organizations: organizations,
       notesAvailable: contact.notes.isNotEmpty,
       photoAvailable: contact.photo?.thumbnail != null,
-      capabilities: const ContactCapabilities(),
+      source: nativeMetadata.source,
+      capabilities: nativeMetadata.capabilities,
       revision: revision,
     );
   }
@@ -313,6 +394,16 @@ class NativeMergeContactGateway implements MergeContactGateway {
     MergeFieldKind.phone,
     MergeFieldKind.email,
   };
+}
+
+class _NativeContactMetadata {
+  final ContactCapabilities capabilities;
+  final ContactSourceInfo source;
+
+  const _NativeContactMetadata({
+    this.capabilities = const ContactCapabilities(),
+    this.source = const ContactSourceInfo(),
+  });
 }
 
 extension _FirstOrNullNativeMerge<T> on Iterable<T> {

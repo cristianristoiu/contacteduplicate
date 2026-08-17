@@ -16,7 +16,7 @@ import UIKit
         name: Self.storageChannelName,
         binaryMessenger: controller.binaryMessenger
       )
-      storageChannel.setMethodCallHandler { call, result in
+      storageChannel.setMethodCallHandler { [weak self] call, result in
         guard call.method == "excludeFromBackup" else {
           result(FlutterMethodNotImplemented)
           return
@@ -25,7 +25,7 @@ import UIKit
         guard
           let arguments = call.arguments as? [String: Any],
           let path = arguments["path"] as? String,
-          !path.isEmpty
+          !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
           result(
             FlutterError(
@@ -38,11 +38,26 @@ import UIKit
         }
 
         do {
+          guard let protectedUrl = try self?.validatedInternalBackupUrl(path: path) else {
+            throw StorageProtectionError.invalidPath
+          }
           var resourceValues = URLResourceValues()
           resourceValues.isExcludedFromBackup = true
-          var resourceUrl = URL(fileURLWithPath: path)
-          try resourceUrl.setResourceValues(resourceValues)
+          var mutableUrl = protectedUrl
+          try mutableUrl.setResourceValues(resourceValues)
+          let verifiedValues = try mutableUrl.resourceValues(forKeys: [.isExcludedFromBackupKey])
+          guard verifiedValues.isExcludedFromBackup == true else {
+            throw StorageProtectionError.verificationFailed
+          }
           result(true)
+        } catch StorageProtectionError.invalidPath {
+          result(
+            FlutterError(
+              code: "unauthorized_path",
+              message: "Calea nu apartine directorului intern autorizat pentru backupuri.",
+              details: nil
+            )
+          )
         } catch {
           result(
             FlutterError(
@@ -57,4 +72,35 @@ import UIKit
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+
+  private func validatedInternalBackupUrl(path: String) throws -> URL {
+    let fileManager = FileManager.default
+    guard let supportRoot = fileManager.urls(
+      for: .applicationSupportDirectory,
+      in: .userDomainMask
+    ).first else {
+      throw StorageProtectionError.invalidPath
+    }
+
+    let allowedRoot = supportRoot
+      .appendingPathComponent("contact_backups", isDirectory: true)
+      .standardizedFileURL
+      .resolvingSymlinksInPath()
+    let candidate = URL(fileURLWithPath: path)
+      .standardizedFileURL
+      .resolvingSymlinksInPath()
+
+    let allowedPath = allowedRoot.path.hasSuffix("/") ? allowedRoot.path : allowedRoot.path + "/"
+    let candidatePath = candidate.path
+    guard candidatePath == allowedRoot.path || candidatePath.hasPrefix(allowedPath) else {
+      throw StorageProtectionError.invalidPath
+    }
+
+    return candidate
+  }
+}
+
+private enum StorageProtectionError: Error {
+  case invalidPath
+  case verificationFailed
 }
