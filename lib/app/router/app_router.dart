@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/onboarding/onboarding_preferences.dart';
 import '../../features/backup/backup_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/duplicates/duplicate_details_screen.dart';
@@ -7,6 +9,7 @@ import '../../features/duplicates/duplicates_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
+import '../../shared/widgets/app_error_state.dart';
 
 class AppRoutes {
   const AppRoutes._();
@@ -18,13 +21,50 @@ class AppRoutes {
   static const String backup = '/backup';
   static const String settings = '/settings';
 
-  static String duplicateDetails(String groupId) {
-    return '$duplicates/${Uri.encodeComponent(groupId)}';
+  static String duplicateDetails(String groupId, {int? scanRevision}) {
+    final encoded = Uri.encodeComponent(groupId.trim());
+    final base = '$duplicates/$encoded';
+    return scanRevision == null ? base : '$base?scanRevision=$scanRevision';
+  }
+
+  static bool isValidGroupId(String? value) {
+    if (value == null) return false;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed.length > 128) return false;
+    return RegExp(r'^group-[a-f0-9]{16,64}$').hasMatch(trimmed);
+  }
+
+  static int? parseScanRevision(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final parsed = int.tryParse(value);
+    return parsed != null && parsed >= 0 ? parsed : null;
   }
 }
 
+final OnboardingPreferences _routerOnboardingPreferences = OnboardingPreferences();
+
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
+  redirect: (context, state) async {
+    final location = state.matchedLocation;
+    if (location == AppRoutes.splash) return null;
+    final onboarding = await _routerOnboardingPreferences.read();
+    if (!onboarding.isReliable) {
+      return location == AppRoutes.onboarding ? null : AppRoutes.splash;
+    }
+    if (!onboarding.completed && location != AppRoutes.onboarding) return AppRoutes.onboarding;
+    if (onboarding.completed && location == AppRoutes.onboarding) return AppRoutes.dashboard;
+    return null;
+  },
+  errorBuilder: (context, state) => Scaffold(
+    body: SafeArea(
+      child: AppErrorState(
+        title: 'Ruta nu este disponibila',
+        message: 'Ecranul solicitat nu poate fi deschis in starea curenta a aplicatiei.',
+        onRetry: () => context.go(AppRoutes.dashboard),
+      ),
+    ),
+  ),
   routes: <RouteBase>[
     GoRoute(
       path: AppRoutes.splash,
@@ -44,8 +84,15 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '${AppRoutes.duplicates}/:groupId',
+      redirect: (context, state) {
+        final groupId = state.pathParameters['groupId'];
+        if (!AppRoutes.isValidGroupId(groupId)) return AppRoutes.duplicates;
+        final rawRevision = state.uri.queryParameters['scanRevision'];
+        if (rawRevision != null && AppRoutes.parseScanRevision(rawRevision) == null) return AppRoutes.duplicates;
+        return null;
+      },
       builder: (context, state) => DuplicateDetailsScreen(
-        groupId: state.pathParameters['groupId'] ?? '',
+        groupId: state.pathParameters['groupId']!.trim(),
       ),
     ),
     GoRoute(

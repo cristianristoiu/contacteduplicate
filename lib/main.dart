@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import 'app/contact_duplicate_app.dart';
+import 'app/runtime/app_lifecycle_coordinator.dart';
 import 'core/backup/contact_backup_service.dart';
 import 'core/backup/protected_contact_backup_service.dart';
 import 'core/contacts/contact_copy_service.dart';
@@ -43,7 +44,9 @@ void main() {
           ),
         ),
       ],
-      child: const ContactDuplicateApp(),
+      child: const AppLifecycleCoordinator(
+        child: ContactDuplicateApp(),
+      ),
     ),
   );
 }
