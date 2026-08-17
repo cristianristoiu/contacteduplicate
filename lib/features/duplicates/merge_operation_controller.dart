@@ -19,6 +19,7 @@ enum MergeOperationControllerStatus {
 
 class MergeOperationController extends ChangeNotifier {
   final MergeEngineService _engine;
+  final MergeContactGateway _gateway;
   final OperationHistoryRepository _history;
   final OperationHistoryFactory _historyFactory;
   final ScanController _scanController;
@@ -34,10 +35,12 @@ class MergeOperationController extends ChangeNotifier {
 
   MergeOperationController({
     required MergeEngineService engine,
+    required MergeContactGateway gateway,
     required OperationHistoryRepository history,
     required ScanController scanController,
     OperationHistoryFactory historyFactory = const OperationHistoryFactory(),
   })  : _engine = engine,
+        _gateway = gateway,
         _history = history,
         _scanController = scanController,
         _historyFactory = historyFactory;
@@ -67,17 +70,13 @@ class MergeOperationController extends ChangeNotifier {
     if (_scanController.resultsStale ||
         _scanController.isScanning ||
         _scanController.scanRevision != plan.scanRevision) {
-      _status = MergeOperationControllerStatus.blocked;
-      _errorCode = 'merge_scan_revision_invalid';
-      _pendingPlan = null;
-      _notifySafely();
+      _block('merge_scan_revision_invalid');
       return false;
     }
-    if (plan.hasUnresolvedConflicts || !plan.hasStableOperationIdentity) {
-      _status = MergeOperationControllerStatus.blocked;
-      _errorCode = 'merge_plan_not_ready';
-      _pendingPlan = null;
-      _notifySafely();
+    if (plan.hasUnresolvedConflicts ||
+        !plan.hasStableOperationIdentity ||
+        plan.safetyBlockers.isNotEmpty) {
+      _block('merge_plan_not_ready');
       return false;
     }
     _pendingPlan = plan;
@@ -104,10 +103,7 @@ class MergeOperationController extends ChangeNotifier {
     if (_scanController.resultsStale ||
         _scanController.isScanning ||
         _scanController.scanRevision != plan.scanRevision) {
-      _pendingPlan = null;
-      _status = MergeOperationControllerStatus.blocked;
-      _errorCode = 'merge_scan_changed_before_confirmation';
-      _notifySafely();
+      _block('merge_scan_changed_before_confirmation');
       return null;
     }
 
@@ -186,6 +182,13 @@ class MergeOperationController extends ChangeNotifier {
     _notifySafely();
   }
 
+  void _block(String code) {
+    _pendingPlan = null;
+    _status = MergeOperationControllerStatus.blocked;
+    _errorCode = code;
+    _notifySafely();
+  }
+
   MergeOperationControllerStatus _mapStatus(MergeReport report) {
     return switch (report.status) {
       MergeExecutionStatus.success => MergeOperationControllerStatus.success,
@@ -206,15 +209,36 @@ class MergeOperationController extends ChangeNotifier {
   Future<void> _recordHistory(MergePlan plan, MergeReport report) async {
     _historyWriteFailed = false;
     try {
+      final createdFingerprint = await _verifiedCreatedFingerprint(report);
       await _history.append(
         _historyFactory.fromMerge(
           report,
           sourceCount: plan.sourceContactIds.length,
           backupId: plan.backupId,
+          createdContactFingerprint: createdFingerprint,
         ),
       );
     } on Object {
       _historyWriteFailed = true;
+    }
+  }
+
+  Future<String?> _verifiedCreatedFingerprint(MergeReport report) async {
+    if (report.status != MergeExecutionStatus.success ||
+        report.requiresReconcile) {
+      return null;
+    }
+    final id = report.createdContactId?.trim();
+    if (id == null || id.isEmpty) return null;
+    try {
+      final records = await _gateway.readContacts(<String>[id]);
+      if (records.length != 1) return null;
+      final record = records[id];
+      if (record == null || !record.hasStableNativeId) return null;
+      final fingerprint = record.revision.fingerprint.trim();
+      return fingerprint.isEmpty ? null : fingerprint;
+    } on Object {
+      return null;
     }
   }
 
