@@ -15,6 +15,7 @@ import 'core/theme/theme_provider.dart';
 import 'features/backup/backup_controller.dart';
 import 'features/dashboard/scan_controller.dart';
 import 'features/duplicates/contact_copy_controller.dart';
+import 'features/duplicates/integrity_merge_operation_journal.dart';
 import 'features/duplicates/merge_engine_service.dart';
 import 'features/duplicates/merge_operation_controller.dart';
 import 'features/duplicates/native_merge_contact_gateway.dart';
@@ -44,6 +45,9 @@ void main() {
         Provider<MergeContactGateway>(
           create: (_) => NativeMergeContactGateway(),
         ),
+        Provider<MergeOperationJournal>(
+          create: (_) => IntegrityMergeOperationJournal(),
+        ),
         ChangeNotifierProvider<ThemeProvider>(
           create: (_) => ThemeProvider(),
         ),
@@ -67,6 +71,7 @@ void main() {
             gateway: context.read<MergeContactGateway>(),
             backupController: context.read<BackupController>(),
             validator: const StrictMergePlanValidator(),
+            journal: context.read<MergeOperationJournal>(),
           ),
         ),
         Provider<ContactRestoreService>(
