@@ -84,6 +84,25 @@ class OperationHistoryEntry {
           safetyBackupId!,
       };
 
+  OperationHistoryEntry consumeUndo() {
+    if (!canUndo) return this;
+    return OperationHistoryEntry(
+      operationId: operationId,
+      type: type,
+      outcome: outcome,
+      startedAt: startedAt,
+      finishedAt: finishedAt,
+      sourceCount: sourceCount,
+      changedCount: changedCount,
+      skippedCount: skippedCount,
+      backupId: backupId,
+      safetyBackupId: safetyBackupId,
+      resultFingerprint: resultFingerprint,
+      canUndo: false,
+      parentOperationId: parentOperationId,
+    );
+  }
+
   Map<String, Object?> toJson() => <String, Object?>{
         'operationId': operationId,
         'type': type.name,
@@ -168,7 +187,6 @@ class OperationHistoryEntry {
       );
     }
 
-    // Intrarea v1 nu continea tintele exacte. Nu inventam un undo nesigur.
     final effectiveCanUndo = canUndoRaw && targets.isNotEmpty;
     final entry = OperationHistoryEntry(
       operationId: operationId.trim(),
@@ -185,7 +203,7 @@ class OperationHistoryEntry {
       canUndo: effectiveCanUndo,
       undoBackupId:
           effectiveCanUndo ? optionalString('undoBackupId') : null,
-      undoTargetIds: targets,
+      undoTargetIds: effectiveCanUndo ? targets : const <String>[],
       parentOperationId: optionalString('parentOperationId'),
     );
     return entry.isStructurallyValid ? entry : null;
@@ -194,7 +212,9 @@ class OperationHistoryEntry {
 
 abstract interface class OperationHistoryRepository {
   Future<List<OperationHistoryEntry>> list();
+  Future<OperationHistoryEntry?> find(String operationId);
   Future<void> append(OperationHistoryEntry entry);
+  Future<bool> markUndoConsumed(String operationId);
   Future<bool> delete(String operationId);
   Future<void> clear({bool preserveUndoable = true});
   Future<Set<String>> protectedBackupIds();
@@ -224,12 +244,24 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
 
   @override
   Future<List<OperationHistoryEntry>> list() async {
-    final entries = await _read();
-    final compacted = _compact(entries);
-    if (!_sameEntries(entries, compacted)) {
+    final read = await _readEnvelope();
+    final compacted = _compact(read.entries);
+    if (read.schemaVersion != _schemaVersion ||
+        !_sameEntries(read.entries, compacted)) {
       await _enqueueWrite(compacted);
     }
     return List<OperationHistoryEntry>.unmodifiable(compacted);
+  }
+
+  @override
+  Future<OperationHistoryEntry?> find(String operationId) async {
+    final id = operationId.trim();
+    if (id.isEmpty) return null;
+    final entries = await list();
+    for (final entry in entries) {
+      if (entry.operationId == id) return entry;
+    }
+    return null;
   }
 
   @override
@@ -252,6 +284,21 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
       next.sort((a, b) => b.finishedAt.compareTo(a.finishedAt));
       return _compact(next);
     });
+  }
+
+  @override
+  Future<bool> markUndoConsumed(String operationId) async {
+    final id = operationId.trim();
+    if (id.isEmpty) return false;
+    var consumed = false;
+    await _enqueueMutation((entries) {
+      return entries.map((entry) {
+        if (entry.operationId != id || !entry.canUndo) return entry;
+        consumed = true;
+        return entry.consumeUndo();
+      }).toList(growable: false);
+    });
+    return consumed;
   }
 
   @override
@@ -290,37 +337,58 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
     return entries.expand((entry) => entry.protectedBackupIds).toSet();
   }
 
-  Future<List<OperationHistoryEntry>> _read() async {
+  Future<_HistoryEnvelope> _readEnvelope() async {
     final raw = await _preferences.getString(_key);
-    if (raw == null || raw.isEmpty) return <OperationHistoryEntry>[];
+    if (raw == null || raw.isEmpty) {
+      return const _HistoryEnvelope(
+        schemaVersion: _schemaVersion,
+        entries: <OperationHistoryEntry>[],
+      );
+    }
     if (raw.length > _maximumBytes) {
       await _preferences.remove(_key);
-      return <OperationHistoryEntry>[];
+      return const _HistoryEnvelope(
+        schemaVersion: _schemaVersion,
+        entries: <OperationHistoryEntry>[],
+      );
     }
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic> || decoded['entries'] is! List) {
         await _preferences.remove(_key);
-        return <OperationHistoryEntry>[];
+        return const _HistoryEnvelope(
+          schemaVersion: _schemaVersion,
+          entries: <OperationHistoryEntry>[],
+        );
       }
       final schemaVersion = decoded['schemaVersion'];
       if (schemaVersion is! int ||
           !_supportedSchemaVersions.contains(schemaVersion)) {
         await _preferences.remove(_key);
-        return <OperationHistoryEntry>[];
+        return const _HistoryEnvelope(
+          schemaVersion: _schemaVersion,
+          entries: <OperationHistoryEntry>[],
+        );
       }
       final entries = (decoded['entries'] as List)
           .map(OperationHistoryEntry.tryParse)
           .whereType<OperationHistoryEntry>()
           .toList(growable: true);
-      if (schemaVersion != _schemaVersion) {
-        await _enqueueWrite(_compact(entries));
-      }
-      return entries;
+      return _HistoryEnvelope(
+        schemaVersion: schemaVersion,
+        entries: entries,
+      );
     } on Object {
       await _preferences.remove(_key);
-      return <OperationHistoryEntry>[];
+      return const _HistoryEnvelope(
+        schemaVersion: _schemaVersion,
+        entries: <OperationHistoryEntry>[],
+      );
     }
+  }
+
+  Future<List<OperationHistoryEntry>> _readEntriesForMutation() async {
+    return (await _readEnvelope()).entries;
   }
 
   List<OperationHistoryEntry> _compact(List<OperationHistoryEntry> entries) {
@@ -346,8 +414,8 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
     final completer = Completer<void>();
     _writeQueue = _writeQueue.catchError((Object _) {}).then((_) async {
       try {
-        final current = await _read();
-        await _write(change(current));
+        final current = await _readEntriesForMutation();
+        await _write(_compact(change(current)));
         completer.complete();
       } on Object catch (error, stackTrace) {
         completer.completeError(error, stackTrace);
@@ -360,7 +428,7 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
     final completer = Completer<void>();
     _writeQueue = _writeQueue.catchError((Object _) {}).then((_) async {
       try {
-        await _write(entries);
+        await _write(_compact(entries));
         completer.complete();
       } on Object catch (error, stackTrace) {
         completer.completeError(error, stackTrace);
@@ -388,6 +456,7 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
     for (var index = 0; index < left.length; index++) {
       if (left[index].operationId != right[index].operationId ||
           left[index].canUndo != right[index].canUndo ||
+          left[index].undoBackupId != right[index].undoBackupId ||
           left[index].undoTargetIds.length != right[index].undoTargetIds.length) {
         return false;
       }
@@ -501,6 +570,16 @@ class OperationHistoryFactory {
       parentOperationId: parentOperationId,
     );
   }
+}
+
+class _HistoryEnvelope {
+  final int schemaVersion;
+  final List<OperationHistoryEntry> entries;
+
+  const _HistoryEnvelope({
+    required this.schemaVersion,
+    required this.entries,
+  });
 }
 
 extension _FirstOrNullHistory<T> on Iterable<T> {
