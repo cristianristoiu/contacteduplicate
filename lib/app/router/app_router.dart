@@ -6,6 +6,7 @@ import '../../features/backup/backup_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/duplicates/duplicate_details_screen.dart';
 import '../../features/duplicates/duplicates_screen.dart';
+import '../../features/history/history_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -20,6 +21,7 @@ class AppRoutes {
   static const String duplicates = '/duplicates';
   static const String backup = '/backup';
   static const String settings = '/settings';
+  static const String history = '/history';
 
   static String duplicateDetails(String groupId, {int? scanRevision}) {
     final encoded = Uri.encodeComponent(groupId.trim());
@@ -113,6 +115,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.settings,
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.history,
+      builder: (context, state) => const HistoryScreen(),
     ),
   ],
 );
