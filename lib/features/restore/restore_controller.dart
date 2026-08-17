@@ -230,6 +230,7 @@ class RestoreController extends ChangeNotifier {
       final entry = _historyFactory.fromRestore(
         report,
         operationId: operationId,
+        startedAt: startedAt,
       );
       await _history.append(entry);
     } on Object {
