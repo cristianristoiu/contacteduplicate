@@ -8,6 +8,7 @@ import '../../features/duplicates/duplicate_details_screen.dart';
 import '../../features/duplicates/duplicates_screen.dart';
 import '../../features/history/history_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
+import '../../features/restore/restore_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../shared/widgets/app_error_state.dart';
@@ -22,11 +23,23 @@ class AppRoutes {
   static const String backup = '/backup';
   static const String settings = '/settings';
   static const String history = '/history';
+  static const String restore = '/restore';
 
   static String duplicateDetails(String groupId, {int? scanRevision}) {
     final encoded = Uri.encodeComponent(groupId.trim());
     final base = '$duplicates/$encoded';
     return scanRevision == null ? base : '$base?scanRevision=$scanRevision';
+  }
+
+  static String restoreBackup(String backupId) =>
+      '$restore?backupId=${Uri.encodeQueryComponent(backupId.trim())}';
+
+  static bool isValidBackupId(String? value) {
+    if (value == null) return false;
+    final trimmed = value.trim();
+    return trimmed.isNotEmpty &&
+        trimmed.length <= 32 &&
+        RegExp(r'^[1-9][0-9]*$').hasMatch(trimmed);
   }
 
   static bool isValidGroupId(String? value) {
@@ -111,6 +124,16 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.backup,
       builder: (context, state) => const BackupScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.restore,
+      redirect: (context, state) =>
+          AppRoutes.isValidBackupId(state.uri.queryParameters['backupId'])
+              ? null
+              : AppRoutes.backup,
+      builder: (context, state) => RestoreScreen(
+        backupId: state.uri.queryParameters['backupId']!.trim(),
+      ),
     ),
     GoRoute(
       path: AppRoutes.settings,

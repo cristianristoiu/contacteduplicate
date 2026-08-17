@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/router/app_router.dart';
 import '../../core/backup/contact_backup_service.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/app_empty_state.dart';
@@ -26,15 +28,10 @@ class _BackupScreenState extends State<BackupScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_loadScheduled) {
-      return;
-    }
-
+    if (_loadScheduled) return;
     _loadScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       final controller = context.read<BackupController>();
       if (controller.status == BackupStatus.idle) {
         unawaited(controller.load());
@@ -45,25 +42,19 @@ class _BackupScreenState extends State<BackupScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<BackupController>();
-
     return AppScaffold(
       title: 'Backup',
       child: _buildContent(context, controller),
     );
   }
 
-  Widget _buildContent(
-    BuildContext context,
-    BackupController controller,
-  ) {
+  Widget _buildContent(BuildContext context, BackupController controller) {
     if ((controller.status == BackupStatus.idle ||
             controller.status == BackupStatus.loading) &&
         controller.backups.isEmpty) {
       return const Center(child: AppLoadingIndicator());
     }
-
-    if (controller.status == BackupStatus.error &&
-        controller.backups.isEmpty) {
+    if (controller.status == BackupStatus.error && controller.backups.isEmpty) {
       return AppErrorState(
         title: 'Backupurile nu pot fi incarcate',
         message:
@@ -71,7 +62,6 @@ class _BackupScreenState extends State<BackupScreen> {
         onRetry: () => unawaited(controller.load()),
       );
     }
-
     if (controller.status == BackupStatus.permissionDenied &&
         controller.backups.isEmpty) {
       return AppErrorState(
@@ -82,7 +72,6 @@ class _BackupScreenState extends State<BackupScreen> {
         retryLabel: 'Creeaza backup',
       );
     }
-
     if (controller.backups.isEmpty) {
       return AppEmptyState(
         icon: Icons.backup_outlined,
@@ -141,15 +130,12 @@ class _BackupScreenState extends State<BackupScreen> {
           const _BackupMessageCard(
             icon: Icons.gpp_bad_outlined,
             message:
-                'Cel putin un fisier nu a trecut verificarea de integritate si nu va putea fi folosit pentru restaurare.',
+                'Cel putin un fisier nu a trecut verificarea de integritate si nu poate fi folosit pentru restaurare.',
             isError: true,
           ),
         ],
         const SizedBox(height: 24),
-        Text(
-          'Copii locale',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
+        Text('Copii locale', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 12),
         ...controller.backups.map(
           (backup) => Padding(
@@ -157,6 +143,9 @@ class _BackupScreenState extends State<BackupScreen> {
             child: _BackupCard(
               backup: backup,
               isBusy: controller.isBusy,
+              onRestore: backup.isValid && !controller.isBusy
+                  ? () => context.push(AppRoutes.restoreBackup(backup.id))
+                  : null,
               onDelete: () => unawaited(
                 _confirmDelete(context, controller, backup),
               ),
@@ -172,16 +161,11 @@ class _BackupScreenState extends State<BackupScreen> {
     BackupController controller,
   ) async {
     final backup = await controller.create();
-    if (!context.mounted || backup == null) {
-      return;
-    }
-
+    if (!context.mounted || backup == null) return;
     final message = backup.accessScope == BackupAccessScope.limited
         ? 'Backup validat pentru contactele permise de accesul limitat iOS.'
         : 'Backup criptat si validat cu succes.';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _confirmDelete(
@@ -198,14 +182,9 @@ class _BackupScreenState extends State<BackupScreen> {
       cancelText: 'Anuleaza',
       isDestructive: true,
     );
-    if (!confirmed || !context.mounted) {
-      return;
-    }
-
+    if (!confirmed || !context.mounted) return;
     final deleted = await controller.delete(backup.id);
-    if (!context.mounted) {
-      return;
-    }
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -227,10 +206,8 @@ class _BackupSecurityNotice extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(
-            Icons.shield_outlined,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          Icon(Icons.shield_outlined,
+              color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -260,7 +237,6 @@ class _BackupMessageCard extends StatelessWidget {
     final color = isError
         ? Theme.of(context).colorScheme.error
         : Theme.of(context).colorScheme.primary;
-
     return AppCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,10 +244,7 @@ class _BackupMessageCard extends StatelessWidget {
           Icon(icon, color: color),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
           ),
         ],
       ),
@@ -282,11 +255,13 @@ class _BackupMessageCard extends StatelessWidget {
 class _BackupCard extends StatelessWidget {
   final ContactBackup backup;
   final bool isBusy;
+  final VoidCallback? onRestore;
   final VoidCallback onDelete;
 
   const _BackupCard({
     required this.backup,
     required this.isBusy,
+    required this.onRestore,
     required this.onDelete,
   });
 
@@ -300,52 +275,61 @@ class _BackupCard extends StatelessWidget {
       BackupAccessScope.limited => 'Acces limitat iOS',
       BackupAccessScope.unknown => 'Domeniu necunoscut',
     };
-
     return AppCard(
       semanticLabel: backup.isValid
-          ? 'Backup valid cu ${backup.contactCount} contacte'
-          : 'Backup invalid',
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+          ? 'Backup valid cu ${backup.contactCount} contacte, $scopeLabel'
+          : 'Backup invalid, restaurarea este blocata',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Icon(
-            backup.isValid
-                ? Icons.verified_user_outlined
-                : Icons.warning_amber_rounded,
-            color: statusColor,
-            size: 28,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(
+                backup.isValid
+                    ? Icons.verified_user_outlined
+                    : Icons.warning_amber_rounded,
+                color: statusColor,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      backup.isValid ? 'Backup validat' : 'Backup invalid',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: statusColor,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(_formatDate(backup.createdAt)),
+                    const SizedBox(height: 4),
+                    Text(
+                      backup.isValid
+                          ? '${backup.contactCount} contacte · $scopeLabel'
+                          : 'Fisierul nu a trecut verificarea de integritate.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Sterge backupul',
+                onPressed: isBusy ? null : onDelete,
+                icon: const Icon(Icons.delete_outline_rounded),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  backup.isValid ? 'Backup validat' : 'Backup invalid',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: statusColor,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatDate(backup.createdAt),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  backup.isValid
-                      ? '${backup.contactCount} contacte · $scopeLabel'
-                      : 'Fisierul nu a trecut verificarea de integritate.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+          if (backup.isValid) ...<Widget>[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onRestore,
+              icon: const Icon(Icons.restore_rounded),
+              label: const Text('Verifica pentru restaurare'),
             ),
-          ),
-          IconButton(
-            tooltip: 'Sterge backupul',
-            onPressed: isBusy ? null : onDelete,
-            icon: const Icon(Icons.delete_outline_rounded),
-          ),
+          ],
         ],
       ),
     );
