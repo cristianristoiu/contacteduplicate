@@ -28,6 +28,8 @@ class OperationHistoryEntry {
   final bool canUndo;
   final String? undoBackupId;
   final List<String> undoTargetIds;
+  final String? createdContactId;
+  final String? createdContactFingerprint;
   final String? parentOperationId;
 
   OperationHistoryEntry({
@@ -45,6 +47,8 @@ class OperationHistoryEntry {
     required this.canUndo,
     this.undoBackupId,
     Iterable<String> undoTargetIds = const <String>[],
+    this.createdContactId,
+    this.createdContactFingerprint,
     this.parentOperationId,
   })  : undoTargetIds = List<String>.unmodifiable(
           undoTargetIds
@@ -58,6 +62,13 @@ class OperationHistoryEntry {
         assert(changedCount >= 0),
         assert(skippedCount >= 0);
 
+  bool get hasVerifiedMergeUndoIdentity =>
+      type == OperationHistoryType.merge &&
+      createdContactId != null &&
+      createdContactId!.trim().isNotEmpty &&
+      createdContactFingerprint != null &&
+      createdContactFingerprint!.trim().isNotEmpty;
+
   bool get isStructurallyValid =>
       operationId.trim().isNotEmpty &&
       operationId.length <= 128 &&
@@ -70,12 +81,20 @@ class OperationHistoryEntry {
       undoTargetIds.every(
         (id) => id.isNotEmpty && id.length <= maxOpaqueIdLength,
       ) &&
+      (createdContactId == null ||
+          (createdContactId!.trim().isNotEmpty &&
+              createdContactId!.length <= maxOpaqueIdLength)) &&
+      (createdContactFingerprint == null ||
+          (createdContactFingerprint!.trim().isNotEmpty &&
+              createdContactFingerprint!.length <= 128)) &&
       (parentOperationId == null ||
           (parentOperationId!.isNotEmpty && parentOperationId!.length <= 128)) &&
       (!canUndo ||
           (undoBackupId != null &&
               undoBackupId!.isNotEmpty &&
-              undoTargetIds.isNotEmpty));
+              undoTargetIds.isNotEmpty &&
+              (type != OperationHistoryType.merge ||
+                  hasVerifiedMergeUndoIdentity)));
 
   Set<String> get protectedBackupIds => <String>{
         if (canUndo && undoBackupId != null && undoBackupId!.isNotEmpty)
@@ -99,6 +118,8 @@ class OperationHistoryEntry {
       safetyBackupId: safetyBackupId,
       resultFingerprint: resultFingerprint,
       canUndo: false,
+      createdContactId: createdContactId,
+      createdContactFingerprint: createdContactFingerprint,
       parentOperationId: parentOperationId,
     );
   }
@@ -118,6 +139,8 @@ class OperationHistoryEntry {
         'canUndo': canUndo,
         'undoBackupId': undoBackupId,
         'undoTargetIds': undoTargetIds,
+        'createdContactId': createdContactId,
+        'createdContactFingerprint': createdContactFingerprint,
         'parentOperationId': parentOperationId,
       };
 
@@ -187,7 +210,15 @@ class OperationHistoryEntry {
       );
     }
 
-    final effectiveCanUndo = canUndoRaw && targets.isNotEmpty;
+    final createdContactId = optionalString(
+      'createdContactId',
+      maxLength: maxOpaqueIdLength,
+    );
+    final createdFingerprint = optionalString('createdContactFingerprint');
+    final hasMergeIdentity = type != OperationHistoryType.merge ||
+        (createdContactId != null && createdFingerprint != null);
+    final effectiveCanUndo =
+        canUndoRaw && targets.isNotEmpty && hasMergeIdentity;
     final entry = OperationHistoryEntry(
       operationId: operationId.trim(),
       type: type,
@@ -204,6 +235,8 @@ class OperationHistoryEntry {
       undoBackupId:
           effectiveCanUndo ? optionalString('undoBackupId') : null,
       undoTargetIds: effectiveCanUndo ? targets : const <String>[],
+      createdContactId: createdContactId,
+      createdContactFingerprint: createdFingerprint,
       parentOperationId: optionalString('parentOperationId'),
     );
     return entry.isStructurallyValid ? entry : null;
@@ -222,8 +255,8 @@ abstract interface class OperationHistoryRepository {
 
 class PreferencesOperationHistoryRepository implements OperationHistoryRepository {
   static const String _key = 'operation_history_v1';
-  static const int _schemaVersion = 2;
-  static const Set<int> _supportedSchemaVersions = <int>{1, 2};
+  static const int _schemaVersion = 3;
+  static const Set<int> _supportedSchemaVersions = <int>{1, 2, 3};
   static const int _maximumBytes = 512 * 1024;
 
   final SharedPreferencesAsync _preferences;
@@ -274,6 +307,14 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
         entry.resultFingerprint,
         'resultFingerprint',
         'Fingerprintul trebuie sa fie opac.',
+      );
+    }
+    if (entry.createdContactFingerprint != null &&
+        !_isOpaque(entry.createdContactFingerprint!)) {
+      throw ArgumentError.value(
+        entry.createdContactFingerprint,
+        'createdContactFingerprint',
+        'Fingerprintul contactului trebuie sa fie opac.',
       );
     }
     await _enqueueMutation((entries) {
@@ -457,7 +498,10 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
       if (left[index].operationId != right[index].operationId ||
           left[index].canUndo != right[index].canUndo ||
           left[index].undoBackupId != right[index].undoBackupId ||
-          left[index].undoTargetIds.length != right[index].undoTargetIds.length) {
+          left[index].undoTargetIds.length != right[index].undoTargetIds.length ||
+          left[index].createdContactId != right[index].createdContactId ||
+          left[index].createdContactFingerprint !=
+              right[index].createdContactFingerprint) {
         return false;
       }
     }
@@ -478,6 +522,7 @@ class OperationHistoryFactory {
     MergeReport report, {
     required int sourceCount,
     required String backupId,
+    String? createdContactFingerprint,
   }) {
     final outcome = switch (report.status) {
       MergeExecutionStatus.success => OperationHistoryOutcome.success,
@@ -490,7 +535,13 @@ class OperationHistoryFactory {
       _ => OperationHistoryOutcome.failed,
     };
     final targetIds = report.deletedSourceIds.toSet();
+    final createdId = report.createdContactId?.trim();
+    final createdFingerprint = createdContactFingerprint?.trim();
     final canUndo = targetIds.isNotEmpty &&
+        createdId != null &&
+        createdId.isNotEmpty &&
+        createdFingerprint != null &&
+        createdFingerprint.isNotEmpty &&
         !report.requiresReconcile &&
         report.status == MergeExecutionStatus.success;
     return OperationHistoryEntry(
@@ -516,13 +567,16 @@ class OperationHistoryFactory {
       ),
       canUndo: canUndo,
       undoBackupId: canUndo ? backupId : null,
-      undoTargetIds: targetIds,
+      undoTargetIds: canUndo ? targetIds : const <String>{},
+      createdContactId: createdId,
+      createdContactFingerprint: createdFingerprint,
     );
   }
 
   OperationHistoryEntry fromRestore(
     RestoreReport report, {
     required String operationId,
+    required DateTime startedAt,
     String? parentOperationId,
   }) {
     final outcome = switch (report.status) {
@@ -535,20 +589,17 @@ class OperationHistoryFactory {
       RestoreExecutionStatus.rollbackFailed => OperationHistoryOutcome.reconcile,
       _ => OperationHistoryOutcome.failed,
     };
-    final now = DateTime.now().toUtc();
-    final targets = report.restoredIds.toSet();
-    final canUndo = targets.isNotEmpty &&
-        !report.requiresReconcile &&
-        report.safetyBackupId != null &&
-        report.status == RestoreExecutionStatus.success;
+    final finishedAt = DateTime.now().toUtc();
+    // Restore-ul generic nu expune inca ID-urile native nou create. Fara ele,
+    // un al doilea undo ar fi nesigur, deci ramane explicit indisponibil.
     return OperationHistoryEntry(
       operationId: operationId,
       type: parentOperationId == null
           ? OperationHistoryType.restore
           : OperationHistoryType.undo,
       outcome: outcome,
-      startedAt: now,
-      finishedAt: now,
+      startedAt: startedAt,
+      finishedAt: finishedAt,
       sourceCount: report.restoredIds.length + report.skippedIds.length,
       changedCount: report.restoredIds.length,
       skippedCount: report.skippedIds.length,
@@ -564,9 +615,7 @@ class OperationHistoryFactory {
         ],
         namespace: 'history-restore',
       ),
-      canUndo: canUndo,
-      undoBackupId: canUndo ? report.safetyBackupId : null,
-      undoTargetIds: targets,
+      canUndo: false,
       parentOperationId: parentOperationId,
     );
   }
