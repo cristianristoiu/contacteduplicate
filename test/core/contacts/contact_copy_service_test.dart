@@ -25,7 +25,7 @@ void main() {
       requestPermission: () async => PermissionStatus.granted,
       createContact: (contact) async {
         createdPayload = contact;
-        return 'copy-1';
+        return ' copy-1 ';
       },
       readContact: (id) async => verifiedContact(id),
       deleteContact: (id) async => deletedIds.add(id),
@@ -59,6 +59,29 @@ void main() {
     expect(result.createdContactId, 'copy-name');
   });
 
+  test('accepta diacritice romanesti echivalente in verificarea numelui', () async {
+    const accentedDraft = ContactCopyDraft(
+      displayName: 'Ștefan Țară',
+      phones: <String>['0712345678'],
+      emails: <String>[],
+      sourceContactIds: <String>['a', 'b'],
+    );
+    final service = NativeContactCopyService(
+      requestPermission: () async => PermissionStatus.granted,
+      createContact: (contact) async => 'copy-diacritics',
+      readContact: (id) async => Contact(
+        id: id,
+        displayName: 'Stefan Tara',
+        name: const Name(first: 'Stefan Tara'),
+        phones: const <Phone>[Phone(number: '+40712345678')],
+      ),
+    );
+
+    final result = await service.createVerifiedCopy(accentedDraft);
+
+    expect(result.status, ContactCopyStatus.success);
+  });
+
   test('genereaza aceeasi amprenta pentru ordini si formate echivalente', () {
     const equivalent = ContactCopyDraft(
       displayName: 'Ana  Popescu',
@@ -68,6 +91,23 @@ void main() {
     );
 
     expect(equivalent.fingerprint, draft.fingerprint);
+  });
+
+  test('ignora metodele invalide in amprenta draftului', () {
+    const equivalent = ContactCopyDraft(
+      displayName: 'Ana Popescu',
+      phones: <String>['0712 345 678', '123'],
+      emails: <String>['ana@example.com', 'invalid-email'],
+      sourceContactIds: <String>['a', 'b'],
+    );
+    const clean = ContactCopyDraft(
+      displayName: 'Ana Popescu',
+      phones: <String>['0712 345 678'],
+      emails: <String>['ana@example.com'],
+      sourceContactIds: <String>['a', 'b'],
+    );
+
+    expect(equivalent.fingerprint, clean.fingerprint);
   });
 
   test('schimbarea unei valori modifica amprenta draftului', () {
@@ -97,19 +137,23 @@ void main() {
     expect(createCalls, 0);
   });
 
-  test('sterge copia noua daca verificarea datelor esueaza', () async {
+  test('sterge copia noua si confirma absenta daca verificarea esueaza', () async {
+    Contact? stored = Contact(
+      id: 'copy-3',
+      displayName: 'Ana Popescu',
+      name: const Name(first: 'Ana Popescu'),
+      phones: const <Phone>[Phone(number: '0700000000')],
+      emails: const <Email>[],
+    );
     final deletedIds = <String>[];
     final service = NativeContactCopyService(
       requestPermission: () async => PermissionStatus.granted,
       createContact: (contact) async => 'copy-3',
-      readContact: (id) async => Contact(
-        id: id,
-        displayName: 'Ana Popescu',
-        name: const Name(first: 'Ana Popescu'),
-        phones: const <Phone>[Phone(number: '0700000000')],
-        emails: const <Email>[],
-      ),
-      deleteContact: (id) async => deletedIds.add(id),
+      readContact: (id) async => stored,
+      deleteContact: (id) async {
+        deletedIds.add(id);
+        stored = null;
+      },
     );
 
     final result = await service.createVerifiedCopy(draft);
@@ -119,12 +163,12 @@ void main() {
     expect(deletedIds, <String>['copy-3']);
   });
 
-  test('raporteaza copia ramasa daca rollbackul esueaza', () async {
+  test('raporteaza rollback esuat daca nu poate confirma absenta', () async {
     final service = NativeContactCopyService(
       requestPermission: () async => PermissionStatus.granted,
       createContact: (contact) async => 'copy-4',
-      readContact: (id) async => null,
-      deleteContact: (id) async => throw Exception('delete failed'),
+      readContact: (id) async => verifiedContact(id),
+      deleteContact: (id) async {},
     );
 
     final result = await service.createVerifiedCopy(draft);
@@ -223,6 +267,28 @@ void main() {
 
     final result = await service.removeVerifiedCopy(
       createdContactId: 'copy-persisted',
+      expectedDraft: draft,
+    );
+
+    expect(result.status, ContactCopyRemovalStatus.verificationFailed);
+  });
+
+  test('esecul recitirii dupa delete este verificationFailed', () async {
+    var reads = 0;
+    final service = NativeContactCopyService(
+      requestPermission: () async => PermissionStatus.granted,
+      readContact: (id) async {
+        reads++;
+        if (reads == 1) {
+          return verifiedContact(id);
+        }
+        throw StateError('read failed');
+      },
+      deleteContact: (id) async {},
+    );
+
+    final result = await service.removeVerifiedCopy(
+      createdContactId: 'copy-read-failed',
       expectedDraft: draft,
     );
 

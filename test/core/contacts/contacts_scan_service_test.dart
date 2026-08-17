@@ -29,7 +29,8 @@ void main() {
       result.duplicateGroups.single.reasons,
       contains(DuplicateMatchReason.phone),
     );
-    expect(result.duplicateGroups.single.confidenceScore, 75);
+    expect(result.duplicateGroups.single.confidenceScore, 95);
+    expect(result.duplicateGroups.single.id, '["1","2"]');
   });
 
   test('nu combina tranzitiv contacte fara o valoare comuna directa', () async {
@@ -100,7 +101,71 @@ void main() {
         DuplicateMatchReason.email,
       }),
     );
-    expect(result.duplicateGroups.single.confidenceScore, 90);
+    expect(result.duplicateGroups.single.confidenceScore, 100);
+  });
+
+  test('filtreaza si deduplica metodele de contact in modelul scanat', () async {
+    final service = NativeContactsScanService(
+      requestPermission: () async => PermissionStatus.granted,
+      readContacts: () async => const <Contact>[
+        Contact(
+          id: '1',
+          displayName: '  Ana   Popescu  ',
+          phones: <Phone>[
+            Phone(number: '0712 345 678'),
+            Phone(number: '+40 712 345 678'),
+            Phone(number: '123'),
+          ],
+          emails: <Email>[
+            Email(address: 'ANA@example.com'),
+            Email(address: 'ana@example.com '),
+            Email(address: 'invalid-email'),
+          ],
+        ),
+        Contact(
+          id: '2',
+          displayName: 'Ana P.',
+          phones: <Phone>[Phone(number: '+40712345678')],
+          emails: <Email>[Email(address: 'ana@example.com')],
+        ),
+      ],
+    );
+
+    final result = await service.scan();
+    final contact = result.duplicateGroups.single.contacts.firstWhere(
+      (contact) => contact.nativeId == '1',
+    );
+
+    expect(contact.displayName, 'Ana Popescu');
+    expect(contact.phones, <String>['+40712345678']);
+    expect(contact.emails, <String>['ana@example.com']);
+  });
+
+  test('marcheaza ID-ul sintetic si numele placeholder separat', () async {
+    final service = NativeContactsScanService(
+      requestPermission: () async => PermissionStatus.granted,
+      readContacts: () async => const <Contact>[
+        Contact(
+          id: '   ',
+          displayName: '   ',
+          phones: <Phone>[Phone(number: '0712 345 678')],
+        ),
+        Contact(
+          id: 'stable',
+          displayName: 'Ana',
+          phones: <Phone>[Phone(number: '+40712345678')],
+        ),
+      ],
+    );
+
+    final result = await service.scan();
+    final synthetic = result.duplicateGroups.single.contacts.firstWhere(
+      (contact) => !contact.hasStableNativeId,
+    );
+
+    expect(synthetic.nativeId, startsWith('temporary-contact-'));
+    expect(synthetic.hasOriginalDisplayName, isFalse);
+    expect(synthetic.displayName, 'Contact fara nume');
   });
 
   test('ignora telefoanele scurte si adresele email invalide', () async {
@@ -125,6 +190,18 @@ void main() {
     final result = await service.scan();
 
     expect(result.duplicateGroups, isEmpty);
+  });
+
+  test('mapeaza orice esec al pluginului in failure', () async {
+    final service = NativeContactsScanService(
+      requestPermission: () async => PermissionStatus.granted,
+      readContacts: () async => throw StateError('plugin failure'),
+    );
+
+    final result = await service.scan();
+
+    expect(result.permissionState, ContactsPermissionState.failure);
+    expect(result.errorCode, 'contacts_scan_failed');
   });
 
   test('nu citeste contactele cand permisiunea este refuzata', () async {

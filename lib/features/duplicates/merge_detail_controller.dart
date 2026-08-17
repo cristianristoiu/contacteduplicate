@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/contacts/contact_data_normalizer.dart';
 import '../../core/contacts/contacts_scan_service.dart';
 
 enum MergeValueType {
@@ -38,6 +39,8 @@ class MergeDraft {
 }
 
 class MergeDetailController extends ChangeNotifier {
+  static final ContactDataNormalizer _normalizer = ContactDataNormalizer();
+
   final DuplicateContactGroup group;
   late final Map<String, ScannedContact> _contactsById;
   late final List<MergeValueOption> phoneOptions;
@@ -93,6 +96,9 @@ class MergeDetailController extends ChangeNotifier {
 
   String get displayName => _displayName;
 
+  bool get hasStableSourceIds =>
+      group.contacts.every((contact) => contact.hasStableNativeId);
+
   Set<String> get selectedPhoneIds => Set<String>.unmodifiable(
         _selectedPhoneIds,
       );
@@ -116,10 +122,13 @@ class MergeDetailController extends ChangeNotifier {
   bool get hasContactMethod =>
       _selectedPhoneIds.isNotEmpty || _selectedEmailIds.isNotEmpty;
 
-  bool get isValid => _displayName.trim().isNotEmpty && hasContactMethod;
+  bool get isValid =>
+      hasStableSourceIds && _displayName.trim().isNotEmpty && hasContactMethod;
 
   List<String> get validationMessages {
     return <String>[
+      if (!hasStableSourceIds)
+        'Cel putin un contact sursa nu are un ID nativ stabil si nu poate fi folosit pentru o operatie de scriere verificabila.',
       if (_displayName.trim().isEmpty) 'Numele final este obligatoriu.',
       if (!hasContactMethod)
         'Pastreaza cel putin un telefon sau o adresa de email.',
@@ -127,7 +136,7 @@ class MergeDetailController extends ChangeNotifier {
   }
 
   MergeDraft get draft => MergeDraft(
-        displayName: _displayName.trim(),
+        displayName: _normalizer.normalizeDisplayName(_displayName),
         masterContactId: _masterContactId,
         phones: selectedPhones,
         emails: selectedEmails,
@@ -140,7 +149,9 @@ class MergeDetailController extends ChangeNotifier {
     }
 
     _masterContactId = nativeId;
-    _displayName = contact.displayName.trim();
+    _displayName = contact.hasOriginalDisplayName
+        ? _normalizer.normalizeDisplayName(contact.displayName)
+        : '';
     _selectedPhoneIds = _optionIdsForSource(phoneOptions, nativeId);
     _selectedEmailIds = _optionIdsForSource(emailOptions, nativeId);
     notifyListeners();
@@ -190,9 +201,10 @@ class MergeDetailController extends ChangeNotifier {
 
   void _resetToSafeDefault({required bool notify}) {
     _masterContactId = _recommendedMasterContactId;
-    _displayName = _contactsById[_recommendedMasterContactId]!
-        .displayName
-        .trim();
+    final selectedContact = _contactsById[_recommendedMasterContactId]!;
+    _displayName = selectedContact.hasOriginalDisplayName
+        ? _normalizer.normalizeDisplayName(selectedContact.displayName)
+        : '';
     _selectedPhoneIds = phoneOptions.map((option) => option.id).toSet();
     _selectedEmailIds = emailOptions.map((option) => option.id).toSet();
     if (notify) {
@@ -229,9 +241,10 @@ class MergeDetailController extends ChangeNotifier {
   }
 
   static int _completenessScore(ScannedContact contact) {
-    return (contact.displayName.trim().isEmpty ? 0 : 4) +
+    return (contact.hasOriginalDisplayName ? 4 : 0) +
         contact.phones.length * 2 +
-        contact.emails.length * 2;
+        contact.emails.length * 2 +
+        (contact.hasStableNativeId ? 1 : 0);
   }
 
   static List<MergeValueOption> _buildOptions(
@@ -243,58 +256,44 @@ class MergeDetailController extends ChangeNotifier {
 
     for (final contact in contacts) {
       for (final rawValue in valuesFor(contact)) {
-        final value = rawValue.trim();
-        if (value.isEmpty) {
+        final key = _canonicalKey(type, rawValue);
+        if (key.isEmpty) {
           continue;
         }
-        final key = _canonicalKey(type, value);
         final existing = options[key];
         if (existing == null) {
           options[key] = _MutableMergeOption(
-            value: value,
+            value: key,
             sourceContactIds: <String>[contact.nativeId],
           );
-        } else {
-          if (!existing.sourceContactIds.contains(contact.nativeId)) {
-            existing.sourceContactIds.add(contact.nativeId);
-          }
-          if (value.length > existing.value.length) {
-            existing.value = value;
-          }
+        } else if (!existing.sourceContactIds.contains(contact.nativeId)) {
+          existing.sourceContactIds.add(contact.nativeId);
         }
       }
     }
 
-    return options.entries.map((entry) {
+    final entries = options.entries.toList()
+      ..sort((left, right) => left.key.compareTo(right.key));
+    return entries.map((entry) {
+      final sourceIds = entry.value.sourceContactIds.toList()..sort();
       return MergeValueOption(
         id: '${type.name}:${entry.key}',
         value: entry.value.value,
         type: type,
-        sourceContactIds: List<String>.unmodifiable(
-          entry.value.sourceContactIds,
-        ),
+        sourceContactIds: List<String>.unmodifiable(sourceIds),
       );
     }).toList(growable: false);
   }
 
   static String _canonicalKey(MergeValueType type, String value) {
-    if (type == MergeValueType.email) {
-      return value.replaceAll(RegExp(r'\s+'), '').toLowerCase();
-    }
-
-    var digits = value.replaceAll(RegExp(r'\D'), '');
-    if (digits.startsWith('00')) {
-      digits = digits.substring(2);
-    }
-    if (digits.length == 10 && digits.startsWith('0')) {
-      digits = '40${digits.substring(1)}';
-    }
-    return digits.isEmpty ? value.toLowerCase() : digits;
+    return type == MergeValueType.email
+        ? _normalizer.normalizeEmail(value)
+        : _normalizer.normalizePhone(value);
   }
 }
 
 class _MutableMergeOption {
-  String value;
+  final String value;
   final List<String> sourceContactIds;
 
   _MutableMergeOption({

@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter_contacts/flutter_contacts.dart';
+
+import 'contact_data_normalizer.dart';
 
 enum ContactsPermissionState {
   granted,
@@ -20,12 +24,16 @@ class ScannedContact {
   final String displayName;
   final List<String> phones;
   final List<String> emails;
+  final bool hasStableNativeId;
+  final bool hasOriginalDisplayName;
 
   const ScannedContact({
     required this.nativeId,
     required this.displayName,
     required this.phones,
     required this.emails,
+    this.hasStableNativeId = true,
+    this.hasOriginalDisplayName = true,
   });
 }
 
@@ -92,13 +100,14 @@ class NativeContactsScanService implements ContactsScanService {
   final ContactsPermissionRequester _requestPermission;
   final NativeContactsReader _readContacts;
   final AppSettingsOpener _openSettings;
-  final String? _defaultCountryCallingCode;
+  final ContactDataNormalizer _normalizer;
 
   NativeContactsScanService({
     ContactsPermissionRequester? requestPermission,
     NativeContactsReader? readContacts,
     AppSettingsOpener? openSettings,
     String? defaultCountryCallingCode = '40',
+    ContactDataNormalizer? normalizer,
   })  : _requestPermission = requestPermission ??
             (() => FlutterContacts.permissions.request(PermissionType.read)),
         _readContacts = readContacts ??
@@ -113,8 +122,10 @@ class NativeContactsScanService implements ContactsScanService {
             (() async {
               await FlutterContacts.permissions.openSettings();
             }),
-        _defaultCountryCallingCode =
-            _sanitizeCountryCallingCode(defaultCountryCallingCode);
+        _normalizer = normalizer ??
+            ContactDataNormalizer(
+              defaultCountryCallingCode: defaultCountryCallingCode,
+            );
 
   @override
   Future<ContactsScanResult> scan() async {
@@ -139,7 +150,7 @@ class NativeContactsScanService implements ContactsScanService {
         totalContacts: contacts.length,
         duplicateGroups: groups,
       );
-    } on Exception {
+    } on Object {
       return const ContactsScanResult.failure('contacts_scan_failed');
     }
   }
@@ -168,23 +179,41 @@ class NativeContactsScanService implements ContactsScanService {
 
   ScannedContact _mapContact(MapEntry<int, Contact> entry) {
     final contact = entry.value;
-    final displayName = contact.displayName?.trim();
+    final rawId = contact.id?.trim() ?? '';
+    final hasStableNativeId = rawId.isNotEmpty;
+    final rawDisplayName = contact.displayName ?? '';
+    final normalizedDisplayName =
+        _normalizer.normalizeDisplayName(rawDisplayName);
+    final hasOriginalDisplayName = normalizedDisplayName.isNotEmpty;
+
+    final phoneKeys = <String>{};
+    for (final phone in contact.phones) {
+      final key = _normalizer.normalizePhone(phone.number);
+      if (key.isNotEmpty) {
+        phoneKeys.add(key);
+      }
+    }
+    final phones = phoneKeys.toList()..sort();
+
+    final emailKeys = <String>{};
+    for (final email in contact.emails) {
+      final key = _normalizer.normalizeEmail(email.address);
+      if (key.isNotEmpty) {
+        emailKeys.add(key);
+      }
+    }
+    final emails = emailKeys.toList()..sort();
 
     return ScannedContact(
-      nativeId: contact.id ?? 'temporary-contact-${entry.key}',
-      displayName: displayName == null || displayName.isEmpty
-          ? 'Contact fara nume'
-          : displayName,
-      phones: contact.phones
-          .map((phone) => phone.number.trim())
-          .where((phone) => phone.isNotEmpty)
-          .toSet()
-          .toList(growable: false),
-      emails: contact.emails
-          .map((email) => email.address.trim())
-          .where((email) => email.isNotEmpty)
-          .toSet()
-          .toList(growable: false),
+      nativeId:
+          hasStableNativeId ? rawId : 'temporary-contact-${entry.key}',
+      displayName: hasOriginalDisplayName
+          ? normalizedDisplayName
+          : 'Contact fara nume',
+      phones: List<String>.unmodifiable(phones),
+      emails: List<String>.unmodifiable(emails),
+      hasStableNativeId: hasStableNativeId,
+      hasOriginalDisplayName: hasOriginalDisplayName,
     );
   }
 
@@ -201,16 +230,12 @@ class NativeContactsScanService implements ContactsScanService {
     for (var index = 0; index < contacts.length; index++) {
       final contact = contacts[index];
 
-      for (final phone in contact.phones.map(_normalizePhone).toSet()) {
-        if (phone.isNotEmpty) {
-          phoneOwners.putIfAbsent(phone, () => <int>{}).add(index);
-        }
+      for (final phone in contact.phones) {
+        phoneOwners.putIfAbsent(phone, () => <int>{}).add(index);
       }
 
-      for (final email in contact.emails.map(_normalizeEmail).toSet()) {
-        if (email.isNotEmpty) {
-          emailOwners.putIfAbsent(email, () => <int>{}).add(index);
-        }
+      for (final email in contact.emails) {
+        emailOwners.putIfAbsent(email, () => <int>{}).add(index);
       }
     }
 
@@ -231,7 +256,9 @@ class NativeContactsScanService implements ContactsScanService {
           .map((index) => contacts[index])
           .toList(growable: false)
         ..sort((left, right) {
-          final nameComparison = left.displayName.compareTo(right.displayName);
+          final nameComparison = _normalizer
+              .canonicalName(left.displayName)
+              .compareTo(_normalizer.canonicalName(right.displayName));
           if (nameComparison != 0) {
             return nameComparison;
           }
@@ -241,7 +268,7 @@ class NativeContactsScanService implements ContactsScanService {
         ..sort();
 
       return DuplicateContactGroup(
-        id: sortedIds.join('|'),
+        id: jsonEncode(sortedIds),
         contacts: List<ScannedContact>.unmodifiable(members),
         reasons: Set<DuplicateMatchReason>.unmodifiable(candidate.reasons),
         confidenceScore: _confidenceFor(candidate.reasons),
@@ -285,60 +312,7 @@ class NativeContactsScanService implements ContactsScanService {
   }
 
   int _confidenceFor(Set<DuplicateMatchReason> reasons) {
-    if (reasons.length >= 2) {
-      return 90;
-    }
-    if (reasons.contains(DuplicateMatchReason.phone)) {
-      return 75;
-    }
-    return 70;
-  }
-
-  String _normalizePhone(String value) {
-    final compact = value.replaceAll(RegExp(r'[^0-9+]'), '');
-    if (compact.isEmpty) {
-      return '';
-    }
-
-    var normalized = compact;
-    if (normalized.startsWith('00')) {
-      normalized = '+${normalized.substring(2)}';
-    }
-
-    final plusCount = '+'.allMatches(normalized).length;
-    if (plusCount > 1 ||
-        (normalized.contains('+') && !normalized.startsWith('+'))) {
-      return '';
-    }
-
-    final digits = normalized.replaceAll('+', '');
-    if (digits.length < 7) {
-      return '';
-    }
-
-    if (normalized.startsWith('0') &&
-        _defaultCountryCallingCode != null &&
-        normalized.length >= 9) {
-      return '+$_defaultCountryCallingCode${normalized.substring(1)}';
-    }
-
-    return normalized;
-  }
-
-  String _normalizeEmail(String value) {
-    final normalized = value.trim().toLowerCase();
-    if (!RegExp(r'^[^@\s]+@[^@\s]+$').hasMatch(normalized)) {
-      return '';
-    }
-    return normalized;
-  }
-
-  static String? _sanitizeCountryCallingCode(String? value) {
-    if (value == null) {
-      return null;
-    }
-    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-    return digits.isEmpty ? null : digits;
+    return reasons.length >= 2 ? 100 : 95;
   }
 }
 

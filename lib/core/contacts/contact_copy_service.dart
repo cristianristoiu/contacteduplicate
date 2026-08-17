@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_contacts/flutter_contacts.dart';
 
+import 'contact_data_normalizer.dart';
+
 enum ContactCopyStatus {
   success,
   permissionDenied,
@@ -22,6 +24,9 @@ enum ContactCopyRemovalStatus {
 }
 
 class ContactCopyDraft {
+  static final ContactDataNormalizer _fingerprintNormalizer =
+      ContactDataNormalizer();
+
   final String displayName;
   final List<String> phones;
   final List<String> emails;
@@ -40,21 +45,28 @@ class ContactCopyDraft {
         .where((id) => id.isNotEmpty)
         .toSet()
         .length;
-    return displayName.trim().isNotEmpty &&
-        (phones.any((value) => value.trim().isNotEmpty) ||
-            emails.any((value) => value.trim().isNotEmpty)) &&
+    final normalizedPhones = phones
+        .map(_fingerprintNormalizer.normalizePhone)
+        .where((value) => value.isNotEmpty);
+    final normalizedEmails = emails
+        .map(_fingerprintNormalizer.normalizeEmail)
+        .where((value) => value.isNotEmpty);
+    return _fingerprintNormalizer
+            .normalizeDisplayName(displayName)
+            .isNotEmpty &&
+        (normalizedPhones.isNotEmpty || normalizedEmails.isNotEmpty) &&
         distinctSourceCount >= 2;
   }
 
   String get fingerprint {
     final normalizedPhones = phones
-        .map(_fingerprintPhone)
+        .map(_fingerprintNormalizer.normalizePhone)
         .where((value) => value.isNotEmpty)
         .toSet()
         .toList()
       ..sort();
     final normalizedEmails = emails
-        .map((value) => value.trim().toLowerCase())
+        .map(_fingerprintNormalizer.normalizeEmail)
         .where((value) => value.isNotEmpty)
         .toSet()
         .toList()
@@ -67,23 +79,11 @@ class ContactCopyDraft {
       ..sort();
 
     return jsonEncode(<String, Object>{
-      'displayName': _normalizeName(displayName),
+      'displayName': _fingerprintNormalizer.normalizeDisplayName(displayName),
       'phones': normalizedPhones,
       'emails': normalizedEmails,
       'sourceContactIds': normalizedSourceIds,
     });
-  }
-
-  static String _fingerprintPhone(String value) {
-    var compact = value.replaceAll(RegExp(r'\D'), '');
-    if (compact.startsWith('00')) {
-      compact = compact.substring(2);
-    }
-    return compact;
-  }
-
-  static String _normalizeName(String value) {
-    return value.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
 }
 
@@ -134,7 +134,7 @@ class NativeContactCopyService implements ContactCopyService {
   final ContactCreator _createContact;
   final ContactReader _readContact;
   final ContactDeleter _deleteContact;
-  final String? _defaultCountryCallingCode;
+  final ContactDataNormalizer _normalizer;
 
   NativeContactCopyService({
     ContactCopyPermissionRequester? requestPermission,
@@ -142,6 +142,7 @@ class NativeContactCopyService implements ContactCopyService {
     ContactReader? readContact,
     ContactDeleter? deleteContact,
     String? defaultCountryCallingCode = '40',
+    ContactDataNormalizer? normalizer,
   })  : _requestPermission = requestPermission ??
             (() => FlutterContacts.permissions.request(
                   PermissionType.readWrite,
@@ -157,8 +158,10 @@ class NativeContactCopyService implements ContactCopyService {
                   },
                 )),
         _deleteContact = deleteContact ?? FlutterContacts.delete,
-        _defaultCountryCallingCode =
-            _sanitizeCountryCallingCode(defaultCountryCallingCode);
+        _normalizer = normalizer ??
+            ContactDataNormalizer(
+              defaultCountryCallingCode: defaultCountryCallingCode,
+            );
 
   @override
   Future<ContactCopyResult> createVerifiedCopy(ContactCopyDraft draft) async {
@@ -189,8 +192,8 @@ class NativeContactCopyService implements ContactCopyService {
             .map((value) => Email(address: value))
             .toList(growable: false),
       );
-      createdContactId = await _createContact(contact);
-      if (createdContactId.trim().isEmpty) {
+      createdContactId = (await _createContact(contact)).trim();
+      if (createdContactId.isEmpty) {
         return const ContactCopyResult(
           status: ContactCopyStatus.createFailed,
           errorCode: 'contact_copy_empty_id',
@@ -211,8 +214,8 @@ class NativeContactCopyService implements ContactCopyService {
         ContactCopyStatus.verificationFailed,
         'contact_copy_verification_failed',
       );
-    } on Exception {
-      if (createdContactId == null || createdContactId.trim().isEmpty) {
+    } on Object {
+      if (createdContactId == null || createdContactId.isEmpty) {
         return const ContactCopyResult(
           status: ContactCopyStatus.createFailed,
           errorCode: 'contact_copy_create_failed',
@@ -266,8 +269,23 @@ class NativeContactCopyService implements ContactCopyService {
           errorCode: 'contact_copy_identity_mismatch',
         );
       }
+    } on Object {
+      return const ContactCopyRemovalResult(
+        status: ContactCopyRemovalStatus.verificationFailed,
+        errorCode: 'contact_copy_removal_precheck_failed',
+      );
+    }
 
+    try {
       await _deleteContact(id);
+    } on Object {
+      return const ContactCopyRemovalResult(
+        status: ContactCopyRemovalStatus.deleteFailed,
+        errorCode: 'contact_copy_removal_failed',
+      );
+    }
+
+    try {
       final remaining = await _readContact(id);
       if (remaining == null) {
         return const ContactCopyRemovalResult(
@@ -278,10 +296,10 @@ class NativeContactCopyService implements ContactCopyService {
         status: ContactCopyRemovalStatus.verificationFailed,
         errorCode: 'contact_copy_removal_verification_failed',
       );
-    } on Exception {
+    } on Object {
       return const ContactCopyRemovalResult(
-        status: ContactCopyRemovalStatus.deleteFailed,
-        errorCode: 'contact_copy_removal_failed',
+        status: ContactCopyRemovalStatus.verificationFailed,
+        errorCode: 'contact_copy_removal_verification_failed',
       );
     }
   }
@@ -298,49 +316,58 @@ class NativeContactCopyService implements ContactCopyService {
   ) async {
     try {
       await _deleteContact(createdContactId);
-      return ContactCopyResult(
-        status: failureStatus,
-        errorCode: failureCode,
-      );
-    } on Exception {
+    } on Object {
       return ContactCopyResult(
         status: ContactCopyStatus.rollbackFailed,
         createdContactId: createdContactId,
         errorCode: 'contact_copy_rollback_failed',
       );
     }
+
+    try {
+      final remaining = await _readContact(createdContactId);
+      if (remaining == null) {
+        return ContactCopyResult(
+          status: failureStatus,
+          errorCode: failureCode,
+        );
+      }
+    } on Object {
+      // Fara recitire nu putem afirma ca rollbackul a reusit.
+    }
+
+    return ContactCopyResult(
+      status: ContactCopyStatus.rollbackFailed,
+      createdContactId: createdContactId,
+      errorCode: 'contact_copy_rollback_failed',
+    );
   }
 
   ContactCopyDraft _normalizeDraft(ContactCopyDraft draft) {
-    final phones = <String, String>{};
-    for (final rawValue in draft.phones) {
-      final value = rawValue.trim();
-      final key = _normalizePhone(value);
-      if (key.isNotEmpty) {
-        phones.putIfAbsent(key, () => value);
-      }
-    }
-
-    final emails = <String, String>{};
-    for (final rawValue in draft.emails) {
-      final value = rawValue.trim();
-      final key = _normalizeEmail(value);
-      if (key.isNotEmpty) {
-        emails.putIfAbsent(key, () => value);
-      }
-    }
-
+    final phones = draft.phones
+        .map(_normalizer.normalizePhone)
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final emails = draft.emails
+        .map(_normalizer.normalizeEmail)
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
     final sourceIds = draft.sourceContactIds
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
         .toSet()
-        .toList(growable: false);
+        .toList()
+      ..sort();
 
     return ContactCopyDraft(
-      displayName: draft.displayName.trim().replaceAll(RegExp(r'\s+'), ' '),
-      phones: phones.values.toList(growable: false),
-      emails: emails.values.toList(growable: false),
-      sourceContactIds: sourceIds,
+      displayName: _normalizer.normalizeDisplayName(draft.displayName),
+      phones: List<String>.unmodifiable(phones),
+      emails: List<String>.unmodifiable(emails),
+      sourceContactIds: List<String>.unmodifiable(sourceIds),
     );
   }
 
@@ -349,20 +376,23 @@ class NativeContactCopyService implements ContactCopyService {
     ContactCopyDraft draft, {
     bool requireExactValues = false,
   }) {
-    final expectedName = _normalizeName(draft.displayName);
+    final expectedName = _normalizer.canonicalName(draft.displayName);
     final displayName = contact.displayName;
     final firstName = contact.name?.first;
     final actualNames = <String>{
-      if (displayName != null) _normalizeName(displayName),
-      if (firstName != null) _normalizeName(firstName),
+      if (displayName != null) _normalizer.canonicalName(displayName),
+      if (firstName != null) _normalizer.canonicalName(firstName),
     }..removeWhere((value) => value.isEmpty);
     if (!actualNames.contains(expectedName)) {
       return false;
     }
 
-    final expectedPhones = draft.phones.map(_normalizePhone).toSet();
+    final expectedPhones = draft.phones
+        .map(_normalizer.normalizePhone)
+        .where((value) => value.isNotEmpty)
+        .toSet();
     final actualPhones = contact.phones
-        .map((phone) => _normalizePhone(phone.number))
+        .map((phone) => _normalizer.normalizePhone(phone.number))
         .where((phone) => phone.isNotEmpty)
         .toSet();
     if (!_valuesMatch(
@@ -373,9 +403,12 @@ class NativeContactCopyService implements ContactCopyService {
       return false;
     }
 
-    final expectedEmails = draft.emails.map(_normalizeEmail).toSet();
+    final expectedEmails = draft.emails
+        .map(_normalizer.normalizeEmail)
+        .where((value) => value.isNotEmpty)
+        .toSet();
     final actualEmails = contact.emails
-        .map((email) => _normalizeEmail(email.address))
+        .map((email) => _normalizer.normalizeEmail(email.address))
         .where((email) => email.isNotEmpty)
         .toSet();
     return _valuesMatch(
@@ -392,55 +425,5 @@ class NativeContactCopyService implements ContactCopyService {
   }) {
     return actual.containsAll(expected) &&
         (!requireExactValues || actual.length == expected.length);
-  }
-
-  String _normalizeName(String value) {
-    return value.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
-  }
-
-  String _normalizePhone(String value) {
-    final compact = value.replaceAll(RegExp(r'[^0-9+]'), '');
-    if (compact.isEmpty) {
-      return '';
-    }
-
-    var normalized = compact;
-    if (normalized.startsWith('00')) {
-      normalized = '+${normalized.substring(2)}';
-    }
-
-    final plusCount = '+'.allMatches(normalized).length;
-    if (plusCount > 1 ||
-        (normalized.contains('+') && !normalized.startsWith('+'))) {
-      return '';
-    }
-
-    final digits = normalized.replaceAll('+', '');
-    if (digits.length < 7) {
-      return '';
-    }
-
-    if (normalized.startsWith('0') &&
-        _defaultCountryCallingCode != null &&
-        normalized.length >= 9) {
-      return '+$_defaultCountryCallingCode${normalized.substring(1)}';
-    }
-    return normalized;
-  }
-
-  String _normalizeEmail(String value) {
-    final normalized = value.trim().toLowerCase();
-    if (!RegExp(r'^[^@\s]+@[^@\s]+$').hasMatch(normalized)) {
-      return '';
-    }
-    return normalized;
-  }
-
-  static String? _sanitizeCountryCallingCode(String? value) {
-    if (value == null) {
-      return null;
-    }
-    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-    return digits.isEmpty ? null : digits;
   }
 }
