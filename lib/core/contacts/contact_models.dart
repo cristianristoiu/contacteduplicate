@@ -27,7 +27,15 @@ class ContactPhoneValue {
     required this.isMatchable,
   });
 
-  String get identityKey => canonicalKey.isEmpty ? 'raw:${displayValue.toLowerCase()}' : canonicalKey;
+  String get identityKey => canonicalKey.isEmpty
+      ? 'raw:${displayValue.toLowerCase()}'
+      : canonicalKey;
+
+  String get contentKey => _stableHash(jsonEncode(<String, Object?>{
+        'value': identityKey,
+        'label': label.trim().toLowerCase(),
+        'extension': extension?.trim() ?? '',
+      }));
 }
 
 class ContactEmailValue {
@@ -43,7 +51,14 @@ class ContactEmailValue {
     required this.isMatchable,
   });
 
-  String get identityKey => canonicalKey.isEmpty ? 'raw:${displayValue.toLowerCase()}' : canonicalKey;
+  String get identityKey => canonicalKey.isEmpty
+      ? 'raw:${displayValue.toLowerCase()}'
+      : canonicalKey;
+
+  String get contentKey => _stableHash(jsonEncode(<String, Object?>{
+        'value': identityKey,
+        'label': label.trim().toLowerCase(),
+      }));
 }
 
 class ContactAddressValue {
@@ -65,7 +80,21 @@ class ContactAddressValue {
     required this.canonicalKey,
   });
 
-  bool get isEmpty => street.isEmpty && city.isEmpty && region.isEmpty && postalCode.isEmpty && country.isEmpty;
+  bool get isEmpty => street.isEmpty &&
+      city.isEmpty &&
+      region.isEmpty &&
+      postalCode.isEmpty &&
+      country.isEmpty;
+
+  String get contentKey => _stableHash(jsonEncode(<String, String>{
+        'canonical': canonicalKey.trim(),
+        'label': label.trim().toLowerCase(),
+        'street': street.trim(),
+        'city': city.trim(),
+        'region': region.trim(),
+        'postalCode': postalCode.trim(),
+        'country': country.trim(),
+      }));
 }
 
 class ContactOrganizationValue {
@@ -81,7 +110,14 @@ class ContactOrganizationValue {
     required this.companyKey,
   });
 
-  bool get isEmpty => company.isEmpty && department.isEmpty && jobTitle.isEmpty;
+  bool get isEmpty =>
+      company.isEmpty && department.isEmpty && jobTitle.isEmpty;
+
+  String get contentKey => _stableHash(jsonEncode(<String, String>{
+        'company': companyKey.trim(),
+        'department': department.trim().toLowerCase(),
+        'jobTitle': jobTitle.trim().toLowerCase(),
+      }));
 }
 
 class ContactNameParts {
@@ -113,6 +149,8 @@ class ContactNameParts {
 }
 
 class ContactSourceInfo {
+  static const int maxIdentityLength = 256;
+
   final String sourceId;
   final String sourceName;
   final ContactSourceKind kind;
@@ -123,7 +161,20 @@ class ContactSourceInfo {
     this.kind = ContactSourceKind.unknown,
   });
 
-  bool get isKnown => sourceId.isNotEmpty || sourceName.isNotEmpty || kind != ContactSourceKind.unknown;
+  bool get isKnown => sourceId.isNotEmpty ||
+      sourceName.isNotEmpty ||
+      kind != ContactSourceKind.unknown;
+
+  String get categoryKey => kind.name;
+
+  String get identityFingerprint => stableOpaqueId(
+        <String>[
+          _bounded(sourceId, maxIdentityLength),
+          _bounded(sourceName, maxIdentityLength),
+          categoryKey,
+        ],
+        namespace: 'contact-source',
+      );
 }
 
 class ContactCapabilities {
@@ -139,24 +190,72 @@ class ContactCapabilities {
 
   bool get canUpdate => update == ContactAccessCapability.writable;
   bool get canDelete => delete == ContactAccessCapability.writable;
-  bool get isKnownReadOnly => update == ContactAccessCapability.readOnly || delete == ContactAccessCapability.readOnly;
+  bool get isKnownReadOnly => update == ContactAccessCapability.readOnly ||
+      delete == ContactAccessCapability.readOnly;
   bool get isFullyWritable => canUpdate && canDelete;
+  bool get isMixed => update != delete &&
+      update != ContactAccessCapability.unknown &&
+      delete != ContactAccessCapability.unknown;
+
+  String get fingerprint => stableOpaqueId(
+        <String>[
+          update.name,
+          delete.name,
+          _bounded(limitationCode ?? '', 96),
+        ],
+        namespace: 'contact-capability',
+      );
 }
 
 class ContactRevisionInfo {
   final DateTime? updatedAt;
   final String fingerprint;
+  final String contentFingerprint;
+  final String identityFingerprint;
+  final String capabilityFingerprint;
+  final String sourceFingerprint;
 
   const ContactRevisionInfo({
     this.updatedAt,
     required this.fingerprint,
+    this.contentFingerprint = '',
+    this.identityFingerprint = '',
+    this.capabilityFingerprint = '',
+    this.sourceFingerprint = '',
   });
 
   bool matches(ContactRevisionInfo other) {
     if (fingerprint != other.fingerprint) return false;
     if (updatedAt == null || other.updatedAt == null) return true;
+    if (!isPlausible() || !other.isPlausible()) return false;
     return updatedAt!.toUtc() == other.updatedAt!.toUtc();
   }
+
+  bool contentMatches(ContactRevisionInfo other) {
+    final left = contentFingerprint.isEmpty ? fingerprint : contentFingerprint;
+    final right = other.contentFingerprint.isEmpty
+        ? other.fingerprint
+        : other.contentFingerprint;
+    return left == right;
+  }
+
+  bool contextMatches(ContactRevisionInfo other) =>
+      contentMatches(other) &&
+      _optionalEquals(capabilityFingerprint, other.capabilityFingerprint) &&
+      _optionalEquals(sourceFingerprint, other.sourceFingerprint);
+
+  bool isPlausible({
+    DateTime? now,
+    Duration futureTolerance = const Duration(minutes: 5),
+  }) {
+    final value = updatedAt;
+    if (value == null) return true;
+    final reference = (now ?? DateTime.now()).toUtc();
+    return !value.toUtc().isAfter(reference.add(futureTolerance));
+  }
+
+  static bool _optionalEquals(String left, String right) =>
+      left.isEmpty || right.isEmpty || left == right;
 }
 
 class ScanMetrics {
@@ -191,6 +290,9 @@ class MatchEvidence {
     required this.evidenceFingerprint,
     required this.strong,
   });
+
+  bool get isValid =>
+      scoreContribution >= 0 && evidenceFingerprint.trim().isNotEmpty;
 }
 
 class ContactRecord {
@@ -216,7 +318,8 @@ class ContactRecord {
     List<ContactPhoneValue> phones = const <ContactPhoneValue>[],
     List<ContactEmailValue> emails = const <ContactEmailValue>[],
     List<ContactAddressValue> addresses = const <ContactAddressValue>[],
-    List<ContactOrganizationValue> organizations = const <ContactOrganizationValue>[],
+    List<ContactOrganizationValue> organizations =
+        const <ContactOrganizationValue>[],
     this.birthday,
     this.notesAvailable = false,
     this.photoAvailable = false,
@@ -227,11 +330,34 @@ class ContactRecord {
   })  : phones = List<ContactPhoneValue>.unmodifiable(phones),
         emails = List<ContactEmailValue>.unmodifiable(emails),
         addresses = List<ContactAddressValue>.unmodifiable(addresses),
-        organizations = List<ContactOrganizationValue>.unmodifiable(organizations);
+        organizations = List<ContactOrganizationValue>.unmodifiable(
+          organizations,
+        );
 
-  bool get hasWritableStableIdentity => hasStableNativeId && capabilities.isFullyWritable;
+  bool get effectiveStableIdentity =>
+      hasStableNativeId && nativeId.trim().isNotEmpty;
+  bool get hasWritableStableIdentity =>
+      effectiveStableIdentity && capabilities.isFullyWritable;
   bool get hasAnyContactMethod => phones.isNotEmpty || emails.isNotEmpty;
-  String get primaryCompany => organizations.where((value) => value.company.isNotEmpty).map((value) => value.company).firstOrNull ?? '';
+  String get primaryCompany => organizations
+          .where((value) => value.company.isNotEmpty)
+          .map((value) => value.company)
+          .firstOrNull ??
+      '';
+  String get contentFingerprint => revision.contentFingerprint.isEmpty
+      ? revision.fingerprint
+      : revision.contentFingerprint;
+  String get identityFingerprint => revision.identityFingerprint.isEmpty
+      ? revision.fingerprint
+      : revision.identityFingerprint;
+  String get contextFingerprint => stableOpaqueId(
+        <String>[
+          contentFingerprint,
+          revision.capabilityFingerprint,
+          revision.sourceFingerprint,
+        ],
+        namespace: 'contact-context',
+      );
 }
 
 class ContactFingerprintBuilder {
@@ -247,28 +373,138 @@ class ContactFingerprintBuilder {
     required Iterable<ContactAddressValue> addresses,
     required Iterable<ContactOrganizationValue> organizations,
     DateTime? birthday,
+    bool notesAvailable = false,
+    bool photoAvailable = false,
+    bool isFavorite = false,
+    ContactSourceInfo source = const ContactSourceInfo(),
+    ContactCapabilities capabilities = const ContactCapabilities(),
   }) {
-    final normalizedPhones = phones.map((value) => value.identityKey).toSet().toList()..sort();
-    final normalizedEmails = emails.map((value) => value.identityKey).toSet().toList()..sort();
-    final normalizedAddresses = addresses.map((value) => value.canonicalKey).where((value) => value.isNotEmpty).toSet().toList()..sort();
-    final normalizedOrganizations = organizations.map((value) => value.companyKey).where((value) => value.isNotEmpty).toSet().toList()..sort();
+    return buildIdentity(
+      nativeId: nativeId,
+      contentFingerprint: buildContent(
+        name: name,
+        phones: phones,
+        emails: emails,
+        addresses: addresses,
+        organizations: organizations,
+        birthday: birthday,
+        notesAvailable: notesAvailable,
+        photoAvailable: photoAvailable,
+        isFavorite: isFavorite,
+      ),
+      source: source,
+      capabilities: capabilities,
+    );
+  }
+
+  String buildContent({
+    required ContactNameParts name,
+    required Iterable<ContactPhoneValue> phones,
+    required Iterable<ContactEmailValue> emails,
+    required Iterable<ContactAddressValue> addresses,
+    required Iterable<ContactOrganizationValue> organizations,
+    DateTime? birthday,
+    bool notesAvailable = false,
+    bool photoAvailable = false,
+    bool isFavorite = false,
+  }) {
+    final normalizedPhones = _canonicalValues(
+      phones.map((value) => value.contentKey),
+    );
+    final normalizedEmails = _canonicalValues(
+      emails.map((value) => value.contentKey),
+    );
+    final normalizedAddresses = _canonicalValues(
+      addresses.where((value) => !value.isEmpty).map((value) => value.contentKey),
+    );
+    final normalizedOrganizations = _canonicalValues(
+      organizations
+          .where((value) => !value.isEmpty)
+          .map((value) => value.contentKey),
+    );
+    final nameKey = name.hasOriginalDisplayName
+        ? normalizer.exactNameKey(name.displayName)
+        : '';
     return _stableHash(jsonEncode(<String, Object?>{
-      'id': nativeId.trim(),
-      'name': normalizer.exactNameKey(name.displayName),
+      'name': nameKey,
       'given': normalizer.exactNameKey(name.givenName),
+      'middle': normalizer.exactNameKey(name.middleName),
       'family': normalizer.exactNameKey(name.familyName),
+      'prefix': normalizer.exactNameKey(name.prefix),
+      'suffix': normalizer.exactNameKey(name.suffix),
       'phones': normalizedPhones,
       'emails': normalizedEmails,
       'addresses': normalizedAddresses,
       'organizations': normalizedOrganizations,
-      'birthday': birthday?.toUtc().toIso8601String(),
+      'birthday': canonicalDateOnly(birthday),
+      'notesAvailable': notesAvailable,
+      'photoAvailable': photoAvailable,
+      'favorite': isFavorite,
     }));
   }
+
+  String buildIdentity({
+    required String nativeId,
+    required String contentFingerprint,
+    ContactSourceInfo source = const ContactSourceInfo(),
+    ContactCapabilities capabilities = const ContactCapabilities(),
+  }) {
+    return _stableHash(jsonEncode(<String, Object?>{
+      'id': nativeId.trim(),
+      'content': contentFingerprint,
+      'source': source.identityFingerprint,
+      'capability': capabilities.fingerprint,
+    }));
+  }
+
+  String buildCapability(ContactCapabilities capabilities) =>
+      capabilities.fingerprint;
+
+  String buildSource(ContactSourceInfo source) => source.identityFingerprint;
+}
+
+String? canonicalDateOnly(DateTime? value) {
+  if (value == null) return null;
+  final date = value.isUtc ? value.toLocal() : value;
+  return '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
 }
 
 String stableOpaqueId(Iterable<String> values, {String namespace = 'id'}) {
-  final sorted = values.map((value) => value.trim()).where((value) => value.isNotEmpty).toSet().toList()..sort();
-  return '$namespace-${_stableHash(jsonEncode(sorted))}';
+  final safeNamespace = _sanitizeNamespace(namespace);
+  final sorted = _canonicalValues(values);
+  return '$safeNamespace-${_stableHash(jsonEncode(sorted))}';
+}
+
+List<String> canonicalStringSet(Iterable<String> values) =>
+    List<String>.unmodifiable(_canonicalValues(values));
+
+List<String> _canonicalValues(Iterable<String> values) {
+  final sorted = values
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet()
+      .toList(growable: true)
+    ..sort();
+  return sorted;
+}
+
+String _sanitizeNamespace(String value) {
+  final normalized = value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9_-]'), '-')
+      .replaceAll(RegExp(r'-+'), '-');
+  if (normalized.isEmpty) return 'id';
+  return _bounded(normalized, 48);
+}
+
+String _bounded(String value, int maxLength) {
+  final trimmed = value.trim();
+  return trimmed.length <= maxLength
+      ? trimmed
+      : trimmed.substring(0, maxLength);
 }
 
 String _stableHash(String value) {
@@ -280,7 +516,8 @@ String _stableHash(String value) {
     hash2 ^= (byte + 31);
     hash2 = (hash2 * 0x100000001b3) & 0x7fffffffffffffff;
   }
-  return '${hash1.toRadixString(16).padLeft(16, '0')}${hash2.toRadixString(16).padLeft(16, '0')}';
+  return '${hash1.toRadixString(16).padLeft(16, '0')}'
+      '${hash2.toRadixString(16).padLeft(16, '0')}';
 }
 
 extension _FirstOrNullContactModel<T> on Iterable<T> {
