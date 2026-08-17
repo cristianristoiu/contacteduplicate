@@ -19,29 +19,38 @@ import 'merge_preview_editor.dart';
 
 class DuplicateDetailsScreen extends StatelessWidget {
   final String groupId;
+  final int? expectedScanRevision;
 
   const DuplicateDetailsScreen({
     required this.groupId,
+    this.expectedScanRevision,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
     final scanController = context.watch<ScanController>();
-    final group = _findGroup(
-      scanController.result?.duplicateGroups ??
-          const <DuplicateContactGroup>[],
-      groupId,
-    );
+    final revisionMatches = expectedScanRevision == null ||
+        expectedScanRevision == scanController.scanRevision;
+    final group = revisionMatches
+        ? _findGroup(
+            scanController.result?.duplicateGroups ??
+                const <DuplicateContactGroup>[],
+            groupId,
+          )
+        : null;
 
-    if (group == null) {
+    if (group == null || scanController.resultsStale) {
       return AppScaffold(
         title: 'Verificare grup',
         child: AppEmptyState(
           icon: Icons.search_off_rounded,
           title: 'Grupul nu mai este disponibil',
-          description:
-              'Rezultatele s-au schimbat sau aplicatia a fost repornita. Porneste o scanare noua pentru a continua.',
+          description: scanController.resultsStale
+              ? 'Agenda s-a schimbat dupa scanare. Rescaneaza inainte sa continui.'
+              : !revisionMatches
+                  ? 'Legatura apartine altei revizii a scanarii. Lista curenta trebuie redeschisa.'
+                  : 'Rezultatele s-au schimbat sau aplicatia a fost repornita. Porneste o scanare noua pentru a continua.',
           primaryButton: AppPrimaryButton(
             label: 'Inapoi la duplicate',
             icon: Icons.arrow_back_rounded,
@@ -65,9 +74,7 @@ class DuplicateDetailsScreen extends StatelessWidget {
     String id,
   ) {
     for (final group in groups) {
-      if (group.id == id) {
-        return group;
-      }
+      if (group.id == id) return group;
     }
     return null;
   }
@@ -174,13 +181,12 @@ class _GroupSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reasons = <String>[
-      if (group.reasons.contains(DuplicateMatchReason.phone))
-        'telefon identic',
-      if (group.reasons.contains(DuplicateMatchReason.email))
-        'email identic',
+      if (group.reasons.contains(DuplicateMatchReason.phone)) 'telefon',
+      if (group.reasons.contains(DuplicateMatchReason.email)) 'email',
+      if (group.reasons.contains(DuplicateMatchReason.name)) 'nume',
+      if (group.reasons.contains(DuplicateMatchReason.company)) 'companie',
     ];
-    final reasonSummary =
-        reasons.isEmpty ? 'date identice' : reasons.join(' si ');
+    final reasonSummary = reasons.isEmpty ? 'date corelate' : reasons.join(', ');
 
     return AppCard(
       child: Column(
@@ -217,6 +223,20 @@ class _GroupSummary extends StatelessWidget {
             'Potrivire detectata prin $reasonSummary. Scorul este orientativ si nu autorizeaza automat o fuziune.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
+          if (group.requiresManualReview) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(
+              'Acest grup necesita verificare manuala inainte de orice operatie.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          if (group.overlapsAnotherGroup) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(
+              'Grupul se suprapune cu alt rezultat. Operatiile bulk sunt blocate.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
         ],
       ),
     );
@@ -230,6 +250,7 @@ class _ContactDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final record = contact.record;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,9 +261,19 @@ class _ContactDetailsCard extends StatelessWidget {
               ContactAvatar(name: contact.displayName, size: 48),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  contact.displayName,
-                  style: Theme.of(context).textTheme.labelLarge,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      contact.displayName,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    if (!contact.hasStableNativeId)
+                      Text(
+                        'Identificator instabil - modificarea este blocata.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -259,6 +290,14 @@ class _ContactDetailsCard extends StatelessWidget {
             emptyLabel: 'Fara email',
             values: contact.emails,
           ),
+          if ((record?.primaryCompany ?? '').isNotEmpty) ...<Widget>[
+            const SizedBox(height: 10),
+            _ContactValues(
+              icon: Icons.business_outlined,
+              emptyLabel: 'Fara companie',
+              values: <String>[record!.primaryCompany],
+            ),
+          ],
         ],
       ),
     );

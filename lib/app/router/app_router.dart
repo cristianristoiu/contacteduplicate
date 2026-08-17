@@ -52,15 +52,20 @@ final GoRouter appRouter = GoRouter(
     if (!onboarding.isReliable) {
       return location == AppRoutes.onboarding ? null : AppRoutes.splash;
     }
-    if (!onboarding.completed && location != AppRoutes.onboarding) return AppRoutes.onboarding;
-    if (onboarding.completed && location == AppRoutes.onboarding) return AppRoutes.dashboard;
+    if (!onboarding.completed && location != AppRoutes.onboarding) {
+      return AppRoutes.onboarding;
+    }
+    if (onboarding.completed && location == AppRoutes.onboarding) {
+      return AppRoutes.dashboard;
+    }
     return null;
   },
   errorBuilder: (context, state) => Scaffold(
     body: SafeArea(
       child: AppErrorState(
         title: 'Ruta nu este disponibila',
-        message: 'Ecranul solicitat nu poate fi deschis in starea curenta a aplicatiei.',
+        message:
+            'Ecranul solicitat nu poate fi deschis in starea curenta a aplicatiei.',
         onRetry: () => context.go(AppRoutes.dashboard),
       ),
     ),
@@ -88,11 +93,17 @@ final GoRouter appRouter = GoRouter(
         final groupId = state.pathParameters['groupId'];
         if (!AppRoutes.isValidGroupId(groupId)) return AppRoutes.duplicates;
         final rawRevision = state.uri.queryParameters['scanRevision'];
-        if (rawRevision != null && AppRoutes.parseScanRevision(rawRevision) == null) return AppRoutes.duplicates;
+        if (rawRevision != null &&
+            AppRoutes.parseScanRevision(rawRevision) == null) {
+          return AppRoutes.duplicates;
+        }
         return null;
       },
       builder: (context, state) => DuplicateDetailsScreen(
         groupId: state.pathParameters['groupId']!.trim(),
+        expectedScanRevision: AppRoutes.parseScanRevision(
+          state.uri.queryParameters['scanRevision'],
+        ),
       ),
     ),
     GoRoute(
