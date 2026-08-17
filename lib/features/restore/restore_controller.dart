@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../app/runtime/operation_coordinator.dart';
 import '../dashboard/scan_controller.dart';
 import '../history/operation_history.dart';
 import 'restore_service.dart';
@@ -22,6 +23,7 @@ class RestoreController extends ChangeNotifier {
   final OperationHistoryRepository _history;
   final OperationHistoryFactory _historyFactory;
   final ScanController _scanController;
+  final OperationCoordinator? _operationCoordinator;
   final DateTime Function() _clock;
 
   RestoreControllerStatus _status = RestoreControllerStatus.idle;
@@ -32,21 +34,25 @@ class RestoreController extends ChangeNotifier {
   RestoreConflictPolicy _conflictPolicy = RestoreConflictPolicy.block;
   Set<String> _targetContactIds = <String>{};
   RestoreCancellationToken? _token;
+  OperationLease? _operationLease;
   String? _errorCode;
   bool _historyWriteFailed = false;
   bool _isDisposed = false;
   int _generation = 0;
+  DateTime? _lastOperationStartedAt;
 
   RestoreController({
     required ContactRestoreService service,
     required OperationHistoryRepository history,
     required ScanController scanController,
     OperationHistoryFactory historyFactory = const OperationHistoryFactory(),
+    OperationCoordinator? operationCoordinator,
     DateTime Function()? clock,
   })  : _service = service,
         _history = history,
         _scanController = scanController,
         _historyFactory = historyFactory,
+        _operationCoordinator = operationCoordinator,
         _clock = clock ?? DateTime.now;
 
   RestoreControllerStatus get status => _status;
@@ -55,19 +61,19 @@ class RestoreController extends ChangeNotifier {
   String? get backupId => _backupId;
   RestoreMode get mode => _mode;
   RestoreConflictPolicy get conflictPolicy => _conflictPolicy;
-  Set<String> get targetContactIds => Set<String>.unmodifiable(_targetContactIds);
+  Set<String> get targetContactIds =>
+      Set<String>.unmodifiable(_targetContactIds);
   String? get errorCode => _errorCode;
   bool get historyWriteFailed => _historyWriteFailed;
-  bool get isBusy =>
-      _status == RestoreControllerStatus.previewing ||
+  bool get isBusy => _status == RestoreControllerStatus.previewing ||
       _status == RestoreControllerStatus.restoring;
-  bool get canCancel =>
-      _status == RestoreControllerStatus.restoring && (_token?.canCancel ?? false);
+  bool get canCancel => _status == RestoreControllerStatus.restoring &&
+      (_token?.canCancel ?? false) &&
+      !(_operationLease?.isCritical ?? false);
   bool get requiresReconcile =>
       _status == RestoreControllerStatus.reconcileRequired ||
       (_report?.requiresReconcile ?? false);
-  bool get canExecute =>
-      _status == RestoreControllerStatus.ready &&
+  bool get canExecute => _status == RestoreControllerStatus.ready &&
       (_preview?.hasWork ?? false) &&
       !(_preview?.hasConflicts ?? true);
 
@@ -78,6 +84,12 @@ class RestoreController extends ChangeNotifier {
     RestoreConflictPolicy conflictPolicy = RestoreConflictPolicy.block,
   }) async {
     if (isBusy || requiresReconcile) return null;
+    if (_operationCoordinator?.hasMutation ?? false) {
+      _status = RestoreControllerStatus.blocked;
+      _errorCode = 'restore_operation_conflict';
+      _notifySafely();
+      return null;
+    }
     final id = backupId.trim();
     if (id.isEmpty ||
         (mode == RestoreMode.targeted && targetContactIds.isEmpty)) {
@@ -113,7 +125,8 @@ class RestoreController extends ChangeNotifier {
       );
       if (_isDisposed || generation != _generation) return null;
       _preview = preview;
-      if (preview.hasConflicts && conflictPolicy == RestoreConflictPolicy.block) {
+      if (preview.hasConflicts &&
+          conflictPolicy == RestoreConflictPolicy.block) {
         _status = RestoreControllerStatus.blocked;
         _errorCode = 'restore_conflict_requires_resolution';
       } else {
@@ -133,13 +146,23 @@ class RestoreController extends ChangeNotifier {
   Future<RestoreReport?> executeConfirmed() async {
     final backupId = _backupId;
     if (!canExecute || backupId == null) return null;
+    final lease = _operationCoordinator?.tryAcquire(AppOperationKind.restore);
+    if (_operationCoordinator != null && lease == null) {
+      _status = RestoreControllerStatus.blocked;
+      _errorCode = 'restore_operation_conflict';
+      _notifySafely();
+      return null;
+    }
+    _operationLease = lease;
     final generation = ++_generation;
     final startedAt = _clock().toUtc();
+    _lastOperationStartedAt = startedAt;
     final token = RestoreCancellationToken();
     _token = token;
     _status = RestoreControllerStatus.restoring;
     _report = null;
     _errorCode = null;
+    _historyWriteFailed = false;
     _notifySafely();
 
     final RestoreReport report;
@@ -159,6 +182,9 @@ class RestoreController extends ChangeNotifier {
       _errorCode = 'restore_controller_unexpected_failure';
       _notifySafely();
       return null;
+    } finally {
+      if (identical(_operationLease, lease)) _operationLease = null;
+      lease?.release();
     }
     if (_isDisposed || generation != _generation) return report;
 
@@ -168,7 +194,9 @@ class RestoreController extends ChangeNotifier {
     _status = _mapStatus(report);
     if (report.restoredIds.isNotEmpty || report.requiresReconcile) {
       _scanController.markResultsStale();
+      _operationCoordinator?.markExternalContactStateUnknown();
     }
+    _notifySafely();
     await _recordHistory(report, startedAt);
     _notifySafely();
     return report;
@@ -176,7 +204,9 @@ class RestoreController extends ChangeNotifier {
 
   bool requestCancel() {
     final token = _token;
-    if (!canCancel || token == null) return false;
+    if (!canCancel || token == null || !token.canCancel || token.isCancelled) {
+      return false;
+    }
     token.cancel();
     _notifySafely();
     return true;
@@ -193,8 +223,29 @@ class RestoreController extends ChangeNotifier {
     );
   }
 
+  Future<bool> retryHistoryWrite() async {
+    final report = _report;
+    final startedAt = _lastOperationStartedAt;
+    if (!_historyWriteFailed || report == null || startedAt == null || isBusy) {
+      return false;
+    }
+    await _recordHistory(report, startedAt);
+    _notifySafely();
+    return !_historyWriteFailed;
+  }
+
+  void invalidatePreview() {
+    if (isBusy || _preview == null) return;
+    _generation++;
+    _preview = null;
+    _report = null;
+    _status = RestoreControllerStatus.idle;
+    _errorCode = 'restore_preview_stale';
+    _notifySafely();
+  }
+
   void reset() {
-    if (isBusy || requiresReconcile) return;
+    if (isBusy || requiresReconcile || _historyWriteFailed) return;
     _generation++;
     _backupId = null;
     _mode = RestoreMode.full;
@@ -203,6 +254,7 @@ class RestoreController extends ChangeNotifier {
     _preview = null;
     _report = null;
     _token = null;
+    _lastOperationStartedAt = null;
     _errorCode = null;
     _historyWriteFailed = false;
     _status = RestoreControllerStatus.idle;
@@ -213,8 +265,8 @@ class RestoreController extends ChangeNotifier {
     return switch (report.status) {
       RestoreExecutionStatus.success => RestoreControllerStatus.success,
       RestoreExecutionStatus.partialSuccess => RestoreControllerStatus.partial,
-      RestoreExecutionStatus.blocked || RestoreExecutionStatus.permissionDenied =>
-        RestoreControllerStatus.blocked,
+      RestoreExecutionStatus.blocked ||
+      RestoreExecutionStatus.permissionDenied => RestoreControllerStatus.blocked,
       RestoreExecutionStatus.cancelled => RestoreControllerStatus.cancelled,
       RestoreExecutionStatus.rollbackFailed ||
       RestoreExecutionStatus.reconcileRequired =>
@@ -223,7 +275,10 @@ class RestoreController extends ChangeNotifier {
     };
   }
 
-  Future<void> _recordHistory(RestoreReport report, DateTime startedAt) async {
+  Future<void> _recordHistory(
+    RestoreReport report,
+    DateTime startedAt,
+  ) async {
     _historyWriteFailed = false;
     try {
       final operationId = 'restore-${startedAt.microsecondsSinceEpoch}';
@@ -248,6 +303,8 @@ class RestoreController extends ChangeNotifier {
     _generation++;
     final token = _token;
     if (token != null && token.canCancel) token.cancel();
+    _operationLease?.release();
+    _operationLease = null;
     super.dispose();
   }
 }

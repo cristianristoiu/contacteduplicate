@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../app/runtime/operation_coordinator.dart';
 import '../../core/contacts/contacts_scan_service.dart';
 
 enum ScanStatus {
@@ -13,6 +14,7 @@ enum ScanStatus {
 
 class ScanController extends ChangeNotifier {
   final ContactsScanService _service;
+  final OperationCoordinator? _operationCoordinator;
 
   ScanStatus _status = ScanStatus.idle;
   ContactsScanResult? _result;
@@ -20,12 +22,17 @@ class ScanController extends ChangeNotifier {
   String? _errorCode;
   String? _settingsErrorCode;
   bool _resultsStale = false;
+  bool _operationBlocked = false;
   int _scanRevision = 0;
   int _operationGeneration = 0;
   bool _isDisposed = false;
   ScanCancellationToken? _activeCancellation;
+  OperationLease? _activeLease;
 
-  ScanController(this._service);
+  ScanController(
+    this._service, {
+    OperationCoordinator? operationCoordinator,
+  }) : _operationCoordinator = operationCoordinator;
 
   ScanStatus get status => _status;
   ContactsScanResult? get result => _result;
@@ -35,33 +42,53 @@ class ScanController extends ChangeNotifier {
   bool get isScanning => _status == ScanStatus.scanning;
   bool get settingsOpenFailed => _settingsErrorCode != null;
   bool get resultsStale => _resultsStale;
+  bool get operationBlocked => _operationBlocked;
   int get scanRevision => _scanRevision;
   int get totalContacts => _result?.totalContacts ?? 0;
   int get duplicateGroupCount => _result?.duplicateGroups.length ?? 0;
   DateTime? get scannedAt => _result?.scannedAt;
-  ScanAccessScope get accessScope => _result?.accessScope ?? ScanAccessScope.unknown;
-  bool get hasCurrentResults => _status == ScanStatus.completed && !_resultsStale;
-  bool get hasLimitedResults => hasCurrentResults && accessScope == ScanAccessScope.limited;
+  ScanAccessScope get accessScope =>
+      _result?.accessScope ?? ScanAccessScope.unknown;
+  bool get hasCurrentResults =>
+      _status == ScanStatus.completed && !_resultsStale;
+  bool get hasLimitedResults =>
+      hasCurrentResults && accessScope == ScanAccessScope.limited;
 
   int get duplicateContactCount {
     final groups = _result?.duplicateGroups;
     if (groups == null || groups.isEmpty) return 0;
-    return groups.expand((group) => group.contacts).map((contact) => contact.nativeId).toSet().length;
+    return groups
+        .expand((group) => group.contacts)
+        .map((contact) => contact.nativeId)
+        .toSet()
+        .length;
   }
 
   int get mergeableGroupCount {
     final groups = _result?.duplicateGroups;
     if (groups == null) return 0;
-    return groups.where((group) => group.canBeMerged && !group.overlapsAnotherGroup).length;
+    return groups
+        .where((group) => group.canBeMerged && !group.overlapsAnotherGroup)
+        .length;
   }
 
   Future<void> scan() async {
     if (isScanning) return;
+    final lease = _operationCoordinator?.tryAcquire(AppOperationKind.scan);
+    if (_operationCoordinator != null && lease == null) {
+      _operationBlocked = true;
+      _errorCode = 'scan_blocked_by_operation';
+      _notifySafely();
+      return;
+    }
+
+    _activeLease = lease;
     final generation = ++_operationGeneration;
     final token = ScanCancellationToken();
     _activeCancellation = token;
     _settingsErrorCode = null;
     _errorCode = null;
+    _operationBlocked = false;
     _progress = const ScanProgress(
       phase: ScanPhase.requestingPermission,
       ratio: 0,
@@ -77,12 +104,20 @@ class ScanController extends ChangeNotifier {
         cancellationToken: token,
         onProgress: (progress) {
           if (_isDisposed || generation != _operationGeneration) return;
+          if (lease != null && !lease.isCurrent) return;
+          final current = _progress;
+          if (current != null && progress.ratio < current.ratio) return;
           _progress = progress;
           _notifySafely();
         },
       );
     } on Object {
-      result = const ContactsScanResult.failure('contacts_scan_unexpected_failure');
+      result = const ContactsScanResult.failure(
+        'contacts_scan_unexpected_failure',
+      );
+    } finally {
+      if (identical(_activeLease, lease)) _activeLease = null;
+      lease?.release();
     }
     if (_isDisposed || generation != _operationGeneration) return;
     _activeCancellation = null;
@@ -109,7 +144,9 @@ class ScanController extends ChangeNotifier {
     _notifySafely();
   }
 
-  void cancelScan({ScanCancellationReason reason = ScanCancellationReason.user}) {
+  void cancelScan({
+    ScanCancellationReason reason = ScanCancellationReason.user,
+  }) {
     if (!isScanning) return;
     _activeCancellation?.cancel(reason);
   }
@@ -138,6 +175,7 @@ class ScanController extends ChangeNotifier {
         permission != ContactsPermissionState.granted &&
         permission != ContactsPermissionState.limited) {
       _resultsStale = true;
+      _scanRevision++;
       _notifySafely();
     }
     return permission;
@@ -160,6 +198,13 @@ class ScanController extends ChangeNotifier {
     _notifySafely();
   }
 
+  void clearOperationBlocked() {
+    if (!_operationBlocked) return;
+    _operationBlocked = false;
+    if (_errorCode == 'scan_blocked_by_operation') _errorCode = null;
+    _notifySafely();
+  }
+
   void reset() {
     if (isScanning) return;
     _operationGeneration++;
@@ -169,6 +214,7 @@ class ScanController extends ChangeNotifier {
     _errorCode = null;
     _settingsErrorCode = null;
     _resultsStale = false;
+    _operationBlocked = false;
     _scanRevision++;
     _notifySafely();
   }
@@ -183,6 +229,8 @@ class ScanController extends ChangeNotifier {
     _operationGeneration++;
     _activeCancellation?.cancel(ScanCancellationReason.lifecycle);
     _activeCancellation = null;
+    _activeLease?.release();
+    _activeLease = null;
     super.dispose();
   }
 }

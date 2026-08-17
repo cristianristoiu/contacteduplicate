@@ -6,6 +6,7 @@ import 'package:provider/single_child_widget.dart';
 
 import 'app/contact_duplicate_app.dart';
 import 'app/runtime/app_lifecycle_coordinator.dart';
+import 'app/runtime/operation_coordinator.dart';
 import 'core/backup/contact_backup_service.dart';
 import 'core/backup/protected_contact_backup_service.dart';
 import 'core/contacts/contact_copy_service.dart';
@@ -28,6 +29,9 @@ void main() {
   runApp(
     MultiProvider(
       providers: <SingleChildWidget>[
+        ChangeNotifierProvider<OperationCoordinator>(
+          create: (_) => OperationCoordinator(),
+        ),
         Provider<ContactBackupService>(
           create: (_) => ProtectedContactBackupService(
             delegate: EncryptedContactBackupService(),
@@ -43,7 +47,10 @@ void main() {
           create: (_) => ThemeProvider(),
         ),
         ChangeNotifierProvider<ScanController>(
-          create: (_) => ScanController(NativeContactsScanService()),
+          create: (context) => ScanController(
+            NativeContactsScanService(),
+            operationCoordinator: context.read<OperationCoordinator>(),
+          ),
         ),
         ChangeNotifierProvider<BackupController>(
           create: (context) {
@@ -71,6 +78,7 @@ void main() {
             gateway: context.read<MergeContactGateway>(),
             history: context.read<OperationHistoryRepository>(),
             scanController: context.read<ScanController>(),
+            operationCoordinator: context.read<OperationCoordinator>(),
           ),
         ),
         ChangeNotifierProvider<RestoreController>(
@@ -78,6 +86,7 @@ void main() {
             service: context.read<ContactRestoreService>(),
             history: context.read<OperationHistoryRepository>(),
             scanController: context.read<ScanController>(),
+            operationCoordinator: context.read<OperationCoordinator>(),
           ),
         ),
         ChangeNotifierProvider<HistoryController>(

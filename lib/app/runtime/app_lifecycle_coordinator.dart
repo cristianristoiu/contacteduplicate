@@ -6,6 +6,9 @@ import 'package:provider/provider.dart';
 import '../../features/backup/backup_controller.dart';
 import '../../features/dashboard/scan_controller.dart';
 import '../../features/duplicates/contact_copy_controller.dart';
+import '../../features/history/history_controller.dart';
+import '../../features/restore/restore_controller.dart';
+import 'operation_coordinator.dart';
 
 class AppLifecycleCoordinator extends StatefulWidget {
   final Widget child;
@@ -21,6 +24,7 @@ class _AppLifecycleCoordinatorState extends State<AppLifecycleCoordinator>
   AppLifecycleState? _lastState;
   int _resumeGeneration = 0;
   bool _resumeInFlight = false;
+  bool _leftForeground = false;
 
   @override
   void initState() {
@@ -51,7 +55,14 @@ class _AppLifecycleCoordinatorState extends State<AppLifecycleCoordinator>
   }
 
   void _handleBackground() {
+    if (_leftForeground) return;
+    _leftForeground = true;
     context.read<ScanController>().invalidateForLifecyclePause();
+    final restore = context.read<RestoreController>();
+    if (!restore.isBusy && !restore.requiresReconcile) {
+      restore.invalidatePreview();
+    }
+    context.read<OperationCoordinator>().markExternalContactStateUnknown();
   }
 
   Future<void> _handleResume() async {
@@ -62,12 +73,25 @@ class _AppLifecycleCoordinatorState extends State<AppLifecycleCoordinator>
       final scan = context.read<ScanController>();
       final backup = context.read<BackupController>();
       final copy = context.read<ContactCopyController>();
-      await scan.refreshPermission();
+      final history = context.read<HistoryController>();
+      final operations = context.read<OperationCoordinator>();
+
+      final permission = await scan.refreshPermission();
       if (!mounted || generation != _resumeGeneration) return;
       backup.clearMergeValidation();
       if (copy.status != ContactCopyControllerStatus.idle) {
         copy.markExternalStateUnknown();
       }
+      if (_leftForeground) {
+        operations.markExternalContactStateUnknown();
+        if (!history.isLoading) {
+          unawaited(history.load());
+        }
+      }
+      if (permission == ContactsPermissionState.failure) {
+        scan.invalidateForExternalContactChange();
+      }
+      _leftForeground = false;
     } finally {
       if (generation == _resumeGeneration) _resumeInFlight = false;
     }
