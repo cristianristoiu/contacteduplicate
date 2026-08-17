@@ -331,8 +331,11 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
     return true;
   }
 
-  bool _isOpaque(String value) =>
-      RegExp(r'^[a-f0-9]{16,64}$').hasMatch(value.trim());
+  bool _isOpaque(String value) {
+    final normalized = value.trim();
+    return RegExp(r'^[a-z0-9][a-z0-9-]{0,47}-[a-f0-9]{32}$')
+        .hasMatch(normalized);
+  }
 }
 
 class OperationHistoryFactory {
