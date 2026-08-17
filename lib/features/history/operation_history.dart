@@ -11,6 +11,9 @@ enum OperationHistoryType { scan, merge, restore, undo }
 enum OperationHistoryOutcome { success, partial, blocked, failed, cancelled, reconcile }
 
 class OperationHistoryEntry {
+  static const int maxUndoTargetIds = 500;
+  static const int maxOpaqueIdLength = 256;
+
   final String operationId;
   final OperationHistoryType type;
   final OperationHistoryOutcome outcome;
@@ -24,6 +27,8 @@ class OperationHistoryEntry {
   final String resultFingerprint;
   final bool canUndo;
   final String? undoBackupId;
+  final List<String> undoTargetIds;
+  final String? parentOperationId;
 
   OperationHistoryEntry({
     required this.operationId,
@@ -39,7 +44,17 @@ class OperationHistoryEntry {
     required this.resultFingerprint,
     required this.canUndo,
     this.undoBackupId,
-  })  : assert(sourceCount >= 0),
+    Iterable<String> undoTargetIds = const <String>[],
+    this.parentOperationId,
+  })  : undoTargetIds = List<String>.unmodifiable(
+          undoTargetIds
+              .map((value) => value.trim())
+              .where((value) => value.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort(),
+        ),
+        assert(sourceCount >= 0),
         assert(changedCount >= 0),
         assert(skippedCount >= 0);
 
@@ -51,7 +66,16 @@ class OperationHistoryEntry {
       changedCount >= 0 &&
       skippedCount >= 0 &&
       resultFingerprint.trim().isNotEmpty &&
-      (!canUndo || (undoBackupId != null && undoBackupId!.isNotEmpty));
+      undoTargetIds.length <= maxUndoTargetIds &&
+      undoTargetIds.every(
+        (id) => id.isNotEmpty && id.length <= maxOpaqueIdLength,
+      ) &&
+      (parentOperationId == null ||
+          (parentOperationId!.isNotEmpty && parentOperationId!.length <= 128)) &&
+      (!canUndo ||
+          (undoBackupId != null &&
+              undoBackupId!.isNotEmpty &&
+              undoTargetIds.isNotEmpty));
 
   Set<String> get protectedBackupIds => <String>{
         if (canUndo && undoBackupId != null && undoBackupId!.isNotEmpty)
@@ -74,6 +98,8 @@ class OperationHistoryEntry {
         'resultFingerprint': resultFingerprint,
         'canUndo': canUndo,
         'undoBackupId': undoBackupId,
+        'undoTargetIds': undoTargetIds,
+        'parentOperationId': parentOperationId,
       };
 
   static OperationHistoryEntry? tryParse(Object? raw) {
@@ -92,7 +118,7 @@ class OperationHistoryEntry {
     final changedCount = map['changedCount'];
     final skippedCount = map['skippedCount'];
     final resultFingerprint = map['resultFingerprint'];
-    final canUndo = map['canUndo'];
+    final canUndoRaw = map['canUndo'];
     if (operationId is! String ||
         typeName is! String ||
         outcomeName is! String ||
@@ -102,7 +128,7 @@ class OperationHistoryEntry {
         changedCount is! int ||
         skippedCount is! int ||
         resultFingerprint is! String ||
-        canUndo is! bool) {
+        canUndoRaw is! bool) {
       return null;
     }
     final type = OperationHistoryType.values
@@ -116,14 +142,34 @@ class OperationHistoryEntry {
     if (type == null || outcome == null || startedAt == null || finishedAt == null) {
       return null;
     }
-    String? optionalString(String key) {
+
+    String? optionalString(String key, {int maxLength = 128}) {
       final value = map[key];
       if (value == null) return null;
-      if (value is! String || value.length > 128) return null;
+      if (value is! String || value.length > maxLength) return null;
       final trimmed = value.trim();
       return trimmed.isEmpty ? null : trimmed;
     }
 
+    final rawTargets = map['undoTargetIds'];
+    final targets = <String>[];
+    if (rawTargets != null) {
+      if (rawTargets is! List ||
+          rawTargets.length > maxUndoTargetIds ||
+          rawTargets.any((value) =>
+              value is! String || value.length > maxOpaqueIdLength)) {
+        return null;
+      }
+      targets.addAll(
+        rawTargets
+            .cast<String>()
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty),
+      );
+    }
+
+    // Intrarea v1 nu continea tintele exacte. Nu inventam un undo nesigur.
+    final effectiveCanUndo = canUndoRaw && targets.isNotEmpty;
     final entry = OperationHistoryEntry(
       operationId: operationId.trim(),
       type: type,
@@ -136,8 +182,11 @@ class OperationHistoryEntry {
       backupId: optionalString('backupId'),
       safetyBackupId: optionalString('safetyBackupId'),
       resultFingerprint: resultFingerprint.trim(),
-      canUndo: canUndo,
-      undoBackupId: optionalString('undoBackupId'),
+      canUndo: effectiveCanUndo,
+      undoBackupId:
+          effectiveCanUndo ? optionalString('undoBackupId') : null,
+      undoTargetIds: targets,
+      parentOperationId: optionalString('parentOperationId'),
     );
     return entry.isStructurallyValid ? entry : null;
   }
@@ -153,7 +202,10 @@ abstract interface class OperationHistoryRepository {
 
 class PreferencesOperationHistoryRepository implements OperationHistoryRepository {
   static const String _key = 'operation_history_v1';
-  static const int _schemaVersion = 1;
+  static const int _schemaVersion = 2;
+  static const Set<int> _supportedSchemaVersions = <int>{1, 2};
+  static const int _maximumBytes = 512 * 1024;
+
   final SharedPreferencesAsync _preferences;
   final int maxEntries;
   final Duration maxAge;
@@ -241,22 +293,30 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
   Future<List<OperationHistoryEntry>> _read() async {
     final raw = await _preferences.getString(_key);
     if (raw == null || raw.isEmpty) return <OperationHistoryEntry>[];
-    if (raw.length > 512 * 1024) {
+    if (raw.length > _maximumBytes) {
       await _preferences.remove(_key);
       return <OperationHistoryEntry>[];
     }
     try {
       final decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic> ||
-          decoded['schemaVersion'] != _schemaVersion ||
-          decoded['entries'] is! List) {
+      if (decoded is! Map<String, dynamic> || decoded['entries'] is! List) {
         await _preferences.remove(_key);
         return <OperationHistoryEntry>[];
       }
-      return (decoded['entries'] as List)
+      final schemaVersion = decoded['schemaVersion'];
+      if (schemaVersion is! int ||
+          !_supportedSchemaVersions.contains(schemaVersion)) {
+        await _preferences.remove(_key);
+        return <OperationHistoryEntry>[];
+      }
+      final entries = (decoded['entries'] as List)
           .map(OperationHistoryEntry.tryParse)
           .whereType<OperationHistoryEntry>()
           .toList(growable: true);
+      if (schemaVersion != _schemaVersion) {
+        await _enqueueWrite(_compact(entries));
+      }
+      return entries;
     } on Object {
       await _preferences.remove(_key);
       return <OperationHistoryEntry>[];
@@ -314,7 +374,7 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
       'schemaVersion': _schemaVersion,
       'entries': entries.map((entry) => entry.toJson()).toList(),
     });
-    if (encoded.length > 512 * 1024) {
+    if (encoded.length > _maximumBytes) {
       throw StateError('operation_history_too_large');
     }
     await _preferences.setString(_key, encoded);
@@ -326,7 +386,11 @@ class PreferencesOperationHistoryRepository implements OperationHistoryRepositor
   ) {
     if (left.length != right.length) return false;
     for (var index = 0; index < left.length; index++) {
-      if (left[index].operationId != right[index].operationId) return false;
+      if (left[index].operationId != right[index].operationId ||
+          left[index].canUndo != right[index].canUndo ||
+          left[index].undoTargetIds.length != right[index].undoTargetIds.length) {
+        return false;
+      }
     }
     return true;
   }
@@ -356,7 +420,10 @@ class OperationHistoryFactory {
       MergeExecutionStatus.rollbackFailed => OperationHistoryOutcome.reconcile,
       _ => OperationHistoryOutcome.failed,
     };
-    final canUndo = report.changedAgenda && !report.requiresReconcile;
+    final targetIds = report.deletedSourceIds.toSet();
+    final canUndo = targetIds.isNotEmpty &&
+        !report.requiresReconcile &&
+        report.status == MergeExecutionStatus.success;
     return OperationHistoryEntry(
       operationId: report.operationId,
       type: OperationHistoryType.merge,
@@ -380,12 +447,14 @@ class OperationHistoryFactory {
       ),
       canUndo: canUndo,
       undoBackupId: canUndo ? backupId : null,
+      undoTargetIds: targetIds,
     );
   }
 
   OperationHistoryEntry fromRestore(
     RestoreReport report, {
     required String operationId,
+    String? parentOperationId,
   }) {
     final outcome = switch (report.status) {
       RestoreExecutionStatus.success => OperationHistoryOutcome.success,
@@ -398,12 +467,16 @@ class OperationHistoryFactory {
       _ => OperationHistoryOutcome.failed,
     };
     final now = DateTime.now().toUtc();
-    final canUndo = report.restoredIds.isNotEmpty &&
+    final targets = report.restoredIds.toSet();
+    final canUndo = targets.isNotEmpty &&
         !report.requiresReconcile &&
-        report.safetyBackupId != null;
+        report.safetyBackupId != null &&
+        report.status == RestoreExecutionStatus.success;
     return OperationHistoryEntry(
       operationId: operationId,
-      type: OperationHistoryType.restore,
+      type: parentOperationId == null
+          ? OperationHistoryType.restore
+          : OperationHistoryType.undo,
       outcome: outcome,
       startedAt: now,
       finishedAt: now,
@@ -418,11 +491,14 @@ class OperationHistoryFactory {
           report.status.name,
           '${report.restoredIds.length}',
           '${report.skippedIds.length}',
+          parentOperationId ?? 'root',
         ],
         namespace: 'history-restore',
       ),
       canUndo: canUndo,
       undoBackupId: canUndo ? report.safetyBackupId : null,
+      undoTargetIds: targets,
+      parentOperationId: parentOperationId,
     );
   }
 }
