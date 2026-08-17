@@ -506,7 +506,6 @@ class ContactRestoreService {
   }
 
   String _contactFingerprint(Contact contact) {
-    final id = contact.id?.trim() ?? '';
     final names = <String>[
       contact.displayName ?? '',
       contact.name?.first ?? '',
@@ -527,7 +526,7 @@ class ContactRestoreService {
       ..sort();
     if (names.isEmpty && phones.isEmpty && emails.isEmpty) return '';
     return stableOpaqueId(
-      <String>[id, ...names, ...phones, ...emails],
+      <String>[...names, ...phones, ...emails],
       namespace: 'restore-contact',
     );
   }
