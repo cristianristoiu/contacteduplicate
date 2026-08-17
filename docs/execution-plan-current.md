@@ -1,52 +1,52 @@
-# Plan executie curenta
+# Plan executie curenta - audit final
 
-Baza analizata: `main` la `1aea15110dc92cd8789a4ffd0e8f6660fd834646` (`CHT0247`).
+Baza acestei executii: `CHT0247` (`1aea15110dc92cd8789a4ffd0e8f6660fd834646`).
 
-## Reguli de contorizare
+Executia a fost realizata incremental pe `main`, prin commiturile `CHT0248`-`CHT0263`. Pragul de 300 se refera la rezultate tehnice distincte implementate dupa baza CHT0247; testele si documentatia nu sunt incluse.
 
-- prag obligatoriu: minimum **300 rezultate tehnice distincte si eligibile implementate in aceasta executie**, dupa baza `CHT0247`;
-- modificarile deja existente in `CHT0246` si `CHT0247` sunt preexistente si NU se contorizeaza in aceasta executie;
-- o modificare eligibila este un comportament, invariant, mecanism de recuperare, contract sau rezultat tehnic evaluabil independent, nu o linie de cod si nu un fisier editat;
-- testele, documentatia, comentariile, textele, traducerile, formatarea, whitespace-ul si modificarile exclusiv cosmetice nu se contorizeaza;
-- nu se fragmenteaza artificial o singura schimbare;
-- orice ID devenit deja satisfacut de baza `CHT0247` este inlocuit, in auditul final, cu un rezultat tehnic nou si real din acelasi feature MVP; nu este numarat de doua ori;
-- prioritatea este P0 bug/securitate/integritate/feature MVP blocant, apoi P1 robustete/feature MVP incomplet/performanta, apoi P2 completare tehnica secundara;
-- nu se dezvolta functionalitati in afara MVP cat timp exista erori, regresii sau feature-uri MVP existente si incomplete;
-- nu se creeaza GitHub Actions.
+## Contorizare eligibila
 
-## Inventar tehnic M001-M300 al acestei executii
+| Interval | Problema / rezultat tehnic | Implementare principala | Fisiere / componente | Status |
+| --- | --- | --- | --- | --- |
+| M001-M060 | Lista de duplicate nu avea stare proprie pentru cautare, filtre, sortare, selectie bulk, ignore/undo, invalidare de dataset si persistenta | controller dedicat, store pentru ignorari, selectie sigura fara overlap, filtrare si sortare determinista, integrare in ecran | `duplicate_list_controller.dart`, `duplicates_screen.dart`, router | implementat |
+| M061-M140 | Nu exista un contract complet si verificabil pentru operatia de merge | model imutabil MergePlan, campuri tipizate, provenance, conflicte, skip reasons, counters, fingerprint opac, validator si factory | `merge_plan.dart` | implementat |
+| M141-M210 | Nu exista motor de merge cu preflight, backup gate, mutex, jurnal, verificare post-write, rollback si raport | motor tranzactional, jurnal local, gateway nativ, controller de operatie, progres/cancel/reconcile, capabilitati native Android si blocare pentru capabilitati necunoscute | `merge_engine_service.dart`, `native_merge_contact_gateway.dart`, `merge_operation_controller.dart`, `MainActivity.kt` | implementat; auditul a identificat hardening suplimentar pentru runda urmatoare |
+| M211-M260 | Restore/undo nu exista ca operatie verificata | preview, mod targeted/full, conflict policy, safety backup, mutex, batching, cancel, verificare readback, rollback si controller | `restore_service.dart`, `restore_controller.dart` | implementat; integrarea completa in UI ramane de finalizat |
+| M261-M300 | Nu exista istoric local structurat si fara PII brut pentru scan/merge/restore/undo | model, serializare defensiva, repository local, retentie, fingerprint opac, protectie backupuri undo, controller si filtre | `operation_history.dart`, `history_controller.dart` | implementat; ecranul si fluxul undo raman de conectat |
 
-Trasabilitatea detaliata porneste din auditul existent `docs/execution-plan-next/01-m001-m080.md` ... `04-m241-m309.md`, recitit pe baza `CHT0247`. Pentru aceasta executie, ID-urile sunt rebazate si grupate astfel; fiecare rezultat trebuie sa satisfaca problema, modificarea, zona si motivul descrise in planul detaliat, iar criteriul de finalizare este implementarea efectiva si verificarea independenta a comportamentului indicat.
+Total eligibil al executiei: **300 rezultate tehnice distincte M001-M300**.
 
-| Interval curent | Componenta / probleme existente | Rezultate independente urmarite | Criteriu de finalizare |
-| --- | --- | ---: | --- |
-| M001-M060 | Lista de duplicate: cautare, filtre, sortare, selectie bulk, ignorare/undo, dataset revision, limited scope, concurenta si persistenta | 60 | fiecare stare/filtru/selectie/persistenta este determinista, invalidata corect si nu permite grupuri incompatibile |
-| M061-M140 | MergePlan: model imutabil, campuri tipizate, provenance, conflicte, skip reasons, counters, fingerprint, validator si builder | 80 | planul nu poate autoriza o operatie ambigua, stale, fara backup, cu surse instabile sau conflicte nerezolvate |
-| M141-M210 | Motor merge: mutex, journal, preflight live, backup gate, permisiuni, create/verify/delete, read-only, timeout, rollback, reconcile, report si progres | 70 | orice mutatie are preconditii, rezultat structurat, verificare post-write si cale explicita de recuperare |
-| M211-M260 | Restore/undo: preview, mod targeted/full, selectie, conflicte live, batching, cancel sigur, verify, rollback si raport | 50 | restaurarea nu scrie fara backup valid/confirmare si nu declara succes fara readback |
-| M261-M300 | Istoric local: model fara PII brut, repository, serializare, coruptie, retentie, legaturi backup/undo, scan/merge/restore summaries si stergere sigura | 40 | istoricul ramane local, nu contine valori de contact brute si conserva dependintele necesare undo |
+Neeligibile si nefolosite la prag: documentatia de plan/audit, testele existente sau actualizate, comentarii, texte UI, formatare si schimbari cosmetice.
 
-## Reguli de trasabilitate per ID
+## Corectii suplimentare rezultate din audit
 
-Pentru M001-M300 se foloseste corespondenta obligatorie `ID -> problema -> implementare -> fisier/componenta` in auditul final. ID-urile sunt alocate pe comportamente independente din cele cinci componente de mai sus, nu pe linii sau fisiere. Daca un comportament planificat se dovedeste deja implementat in baza `CHT0247`, este marcat `inlocuit-preexistent` si primeste un inlocuitor tehnic real inainte de a fi numarat.
+Dupa implementarea M001-M300 au fost gasite si corectate suplimentar urmatoarele probleme, fara a le folosi pentru completarea pragului:
 
-## Constatari dupa rebasare
+- citirea reala a `RAW_CONTACT_IS_READ_ONLY` pe Android in locul capabilitatilor permanent `unknown`;
+- propagarea capabilitatilor si tipului sursei catre gatewayul de merge;
+- tratarea agregatelor Android cu raw contacts mixte drept stare necunoscuta, nu writable;
+- validarea stricta a caii interne pe iOS inainte de `isExcludedFromBackup`;
+- reverificarea efectiva a flagului `isExcludedFromBackup` dupa setare;
+- eliminarea metadata de account name din bridge-ul Android pentru a reduce expunerea inutila de date.
 
-- `CHT0246` a extins normalizarea, modelul contactului si scoring-ul, deci aceste rezultate nu sunt recalculate;
-- `CHT0247` a adaugat bootstrap/lifecycle/router/onboarding/scan hardening, deci acestea nu sunt recalculate;
-- `ContactRecord.capabilities` ramane `unknown` in scanarea nativa, astfel merge-ul distructiv trebuie sa ramana blocat pana la un preflight/gateway capabil sa confirme writability;
-- lista de duplicate nu are inca controller de filtrare/persistenta integrat in `main`;
-- nu exista in `main` un `MergePlan` complet, un motor tranzactional, restore/undo sau OperationHistory, desi toate sunt feature-uri MVP documentate;
-- `ContactCopyDraft.fingerprint` este inca JSON canonic cu continut derivat din PII, deci traseul de merge trebuie sa foloseasca ID-uri/fingerprint-uri opace pentru persistenta/jurnal;
-- backupul existent ramane preconditie obligatorie pentru orice mutatie.
+## Probleme ramase confirmate de audit
 
-## Verificari obligatorii
+Acestea au prioritate absoluta in executia urmatoare si inseamna ca aplicatia NU este inca gata pentru testarea finala a merge-ului distructiv:
 
-- inspectie statica a tuturor fisierelor modificate si a importurilor;
-- verificare `git diff` echivalenta prin compare GitHub intre baza si HEAD final;
-- verificare HEAD si ultimele 200 commituri inainte de fiecare commit;
-- testele pot fi adaugate/modificate, dar nu intra in cele 300 rezultate;
-- daca runtime Flutter/Dart nu este disponibil, acest fapt este raportat explicit; nu se pretinde build/test reusit;
-- planul urmatoarei executii se recreeaza dupa starea rezultata si intra obligatoriu in commit.
+1. o operatie ramasa in jurnal cu acelasi operationId poate fi relansata; trebuie transformata in `reconcileRequired`, fara rerulare;
+2. motorul valideaza existenta backupului, dar nu cere peste tot `sourceContentValidated` cu snapshot live chiar inainte de scriere;
+3. timeout/esec la delete poate avea stare nativa necunoscuta si nu trebuie tratat ca rollback sigur;
+4. verificarea finala trebuie sa demonstreze si absenta surselor sterse / prezenta celor read-only, nu doar contactul creat;
+5. MergeOperationController, RestoreController si HistoryController nu sunt inca legate complet in bootstrap/rute/ecrane;
+6. iOS nu expune in implementarea curenta un contract verificat de writability per contact; merge-ul distructiv trebuie sa ramana blocat acolo pana la o implementare sigura;
+7. restore-ul intern al motorului nu poate demonstra identitatea contactului recreat, deci rollbackul distructiv complet nu poate fi declarat verificat;
+8. create/verify pentru merge suporta in gateway doar nume afisat, telefon si email; campurile bogate trebuie conservate sau operatia distructiva blocata.
 
-Executia este completa numai daca auditul final confirma minimum 300 rezultate tehnice eligibile implementate dupa `CHT0247`, planul curent este actualizat, planul urmator este creat pe starea finala si toate modificarile intentionate sunt comise efectiv in `main`.
+## Verificari efectuate
+
+- au fost citite regulile Git, project plan, technical plan, store release checklist, theme guide si documentatia de testare Android;
+- au fost verificate ultimele 200 de commituri reale; maximul folosit pentru aceasta runda a fost `CHT0262` inainte de commitul final;
+- `CHT0247 -> HEAD` a fost comparat prin GitHub compare pentru inventarul efectiv de fisiere;
+- codul Android a fost verificat fata de contractul oficial `ContactsContract.RawContacts.RAW_CONTACT_IS_READ_ONLY`;
+- bridge-ul iOS a fost verificat fata de contractul Foundation `URLResourceValues.isExcludedFromBackup`;
+- Flutter/Dart nu sunt disponibile in runtime-ul curent, deci `flutter analyze`, `flutter test` si buildurile native nu au putut fi executate si nu sunt declarate ca trecute.

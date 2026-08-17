@@ -39,14 +39,12 @@ class MainActivity : FlutterActivity() {
     private fun readContactCapabilities(contactId: String): Map<String, Any?> {
         val projection = arrayOf(
             ContactsContract.RawContacts._ID,
-            ContactsContract.RawContacts.ACCOUNT_NAME,
             ContactsContract.RawContacts.ACCOUNT_TYPE,
             ContactsContract.RawContacts.DATA_SET,
             ContactsContract.RawContacts.RAW_CONTACT_IS_READ_ONLY,
         )
         val selection = "${ContactsContract.RawContacts.CONTACT_ID} = ? AND ${ContactsContract.RawContacts.DELETED} = 0"
         val rawContactIds = mutableListOf<String>()
-        val accountNames = linkedSetOf<String>()
         val accountTypes = linkedSetOf<String>()
         val dataSets = linkedSetOf<String>()
         var found = false
@@ -61,18 +59,15 @@ class MainActivity : FlutterActivity() {
             null,
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts._ID)
-            val accountNameIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_NAME)
             val accountTypeIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_TYPE)
             val dataSetIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts.DATA_SET)
             val readOnlyIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts.RAW_CONTACT_IS_READ_ONLY)
             while (cursor.moveToNext()) {
                 found = true
                 rawContactIds.add(cursor.getLong(idIndex).toString())
-                cursor.getString(accountNameIndex)?.trim()?.takeIf { it.isNotEmpty() }?.let(accountNames::add)
                 cursor.getString(accountTypeIndex)?.trim()?.takeIf { it.isNotEmpty() }?.let(accountTypes::add)
                 cursor.getString(dataSetIndex)?.trim()?.takeIf { it.isNotEmpty() }?.let(dataSets::add)
-                val readOnly = cursor.getInt(readOnlyIndex) == 1
-                if (readOnly) {
+                if (cursor.getInt(readOnlyIndex) == 1) {
                     hasReadOnlyRawContact = true
                 } else {
                     hasWritableRawContact = true
@@ -80,8 +75,9 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        val mixedCapabilities = hasWritableRawContact && hasReadOnlyRawContact
         val capability = when {
-            !found -> "unknown"
+            !found || mixedCapabilities -> "unknown"
             hasWritableRawContact -> "writable"
             hasReadOnlyRawContact -> "readOnly"
             else -> "unknown"
@@ -90,9 +86,8 @@ class MainActivity : FlutterActivity() {
             "found" to found,
             "update" to capability,
             "delete" to capability,
-            "hasMixedCapabilities" to (hasWritableRawContact && hasReadOnlyRawContact),
+            "hasMixedCapabilities" to mixedCapabilities,
             "rawContactIds" to rawContactIds,
-            "accountNames" to accountNames.toList(),
             "accountTypes" to accountTypes.toList(),
             "dataSets" to dataSets.toList(),
         )
