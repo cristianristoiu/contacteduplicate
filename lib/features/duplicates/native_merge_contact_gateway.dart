@@ -12,8 +12,10 @@ class NativeMergeContactGateway implements MergeContactGateway {
   static const MethodChannel _contactsChannel = MethodChannel(
     'ro.contacteduplicate.app/contacts',
   );
+  static const int _maxContactBatch = 100;
 
   final ContactDataNormalizer _normalizer;
+  final Map<String, String> _restoredContactIds = <String, String>{};
 
   NativeMergeContactGateway({ContactDataNormalizer? normalizer})
       : _normalizer = normalizer ?? ContactDataNormalizer();
@@ -29,10 +31,19 @@ class NativeMergeContactGateway implements MergeContactGateway {
 
   @override
   Future<Map<String, ContactRecord>> readContacts(Iterable<String> ids) async {
+    final normalizedIds = ids
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false)
+      ..sort();
+    if (normalizedIds.isEmpty || normalizedIds.length > _maxContactBatch) {
+      return const <String, ContactRecord>{};
+    }
+
+    final nativeMetadata = await _readNativeMetadataBatch(normalizedIds);
     final result = <String, ContactRecord>{};
-    for (final rawId in ids) {
-      final id = rawId.trim();
-      if (id.isEmpty) continue;
+    for (final id in normalizedIds) {
       final contact = await FlutterContacts.get(
         id,
         properties: const <ContactProperty>{
@@ -45,16 +56,14 @@ class NativeMergeContactGateway implements MergeContactGateway {
           ContactProperty.photoThumbnail,
         },
       );
-      if (contact != null) {
-        final nativeMetadata = await _readNativeMetadata(id);
-        result[id] = _mapContact(
-          contact,
-          expectedId: id,
-          nativeMetadata: nativeMetadata,
-        );
-      }
+      if (contact == null) continue;
+      result[id] = _mapContact(
+        contact,
+        expectedId: id,
+        nativeMetadata: nativeMetadata[id] ?? const _NativeContactMetadata(),
+      );
     }
-    return result;
+    return Map<String, ContactRecord>.unmodifiable(result);
   }
 
   @override
@@ -62,46 +71,59 @@ class NativeMergeContactGateway implements MergeContactGateway {
     final unsupported = plan.selectedFields.where(
       (field) => !_supportedCreateKinds.contains(field.kind),
     );
-    if (unsupported.isNotEmpty) {
+    if (unsupported.isNotEmpty || plan.unsupportedFieldKinds.isNotEmpty) {
       throw StateError('merge_native_unsupported_selected_fields');
     }
 
-    final name = plan.selectedFields
-        .where((field) => field.kind == MergeFieldKind.displayName)
-        .map((field) => _normalizer.normalizeDisplayName(field.displayValue))
-        .where((value) => value.isNotEmpty)
-        .firstOrNull;
-    if (name == null) {
+    final fields = <MergeFieldKind, MergeSelectedField>{
+      for (final field in plan.selectedFields) field.kind: field,
+    };
+    final displayName = _normalizer.normalizeDisplayName(
+      fields[MergeFieldKind.displayName]?.displayValue ?? '',
+    );
+    if (displayName.isEmpty) {
       throw StateError('merge_native_missing_display_name');
     }
 
-    final phones = plan.selectedFields
-        .where((field) => field.kind == MergeFieldKind.phone)
-        .map((field) => _normalizer.normalizePhoneValue(field.displayValue))
-        .where((value) => value.isMatchable)
-        .map((value) => value.displayValue)
-        .toSet()
-        .map((value) => Phone(number: value))
-        .toList(growable: false);
-    final emails = plan.selectedFields
-        .where((field) => field.kind == MergeFieldKind.email)
-        .map((field) => _normalizer.normalizeEmailValue(field.displayValue))
-        .where((value) => value.isMatchable)
-        .map((value) => value.displayValue)
-        .toSet()
-        .map((value) => Email(address: value))
-        .toList(growable: false);
+    final givenName = _cleanNameComponent(fields[MergeFieldKind.givenName]);
+    final middleName = _cleanNameComponent(fields[MergeFieldKind.middleName]);
+    final familyName = _cleanNameComponent(fields[MergeFieldKind.familyName]);
+    final prefix = _cleanNameComponent(fields[MergeFieldKind.prefix]);
+    final suffix = _cleanNameComponent(fields[MergeFieldKind.suffix]);
+    final name = Name(
+      first: givenName.isEmpty && familyName.isEmpty ? displayName : givenName,
+      middle: middleName,
+      last: familyName,
+      prefix: prefix,
+      suffix: suffix,
+    );
+
+    final phoneKeys = <String>{};
+    final phones = <Phone>[];
+    for (final field in plan.selectedFields.where(
+      (field) => field.kind == MergeFieldKind.phone,
+    )) {
+      final value = _normalizer.normalizePhoneValue(field.displayValue);
+      if (!value.isMatchable || !phoneKeys.add(value.canonicalKey)) continue;
+      phones.add(Phone(number: value.displayValue));
+    }
+
+    final emailKeys = <String>{};
+    final emails = <Email>[];
+    for (final field in plan.selectedFields.where(
+      (field) => field.kind == MergeFieldKind.email,
+    )) {
+      final value = _normalizer.normalizeEmailValue(field.displayValue);
+      if (!value.isMatchable || !emailKeys.add(value.canonicalKey)) continue;
+      emails.add(Email(address: value.displayValue));
+    }
 
     if (phones.isEmpty && emails.isEmpty) {
       throw StateError('merge_native_missing_contact_method');
     }
 
     final createdId = await FlutterContacts.create(
-      Contact(
-        name: Name(first: name),
-        phones: phones,
-        emails: emails,
-      ),
+      Contact(name: name, phones: phones, emails: emails),
     );
     final id = createdId.trim();
     if (id.isEmpty) throw StateError('merge_native_empty_created_id');
@@ -132,17 +154,30 @@ class NativeMergeContactGateway implements MergeContactGateway {
     );
     if (contact == null) return false;
 
-    final expectedName = plan.selectedFields
+    final expectedDisplayName = plan.selectedFields
         .where((field) => field.kind == MergeFieldKind.displayName)
         .map((field) => _normalizer.exactNameKey(field.displayValue))
         .where((value) => value.isNotEmpty)
         .firstOrNull;
-    if (expectedName == null) return false;
+    if (expectedDisplayName == null) return false;
+
     final actualNames = <String>{
       _normalizer.exactNameKey(contact.displayName ?? ''),
       _normalizer.exactNameKey(contact.name?.first ?? ''),
+      _normalizer.exactNameKey(
+        <String>[
+          contact.name?.prefix ?? '',
+          contact.name?.first ?? '',
+          contact.name?.middle ?? '',
+          contact.name?.last ?? '',
+          contact.name?.suffix ?? '',
+        ].where((value) => value.trim().isNotEmpty).join(' '),
+      ),
     }..removeWhere((value) => value.isEmpty);
-    if (!actualNames.contains(expectedName)) return false;
+    if (!actualNames.contains(expectedDisplayName) &&
+        !_structuredNameMatches(contact.name, plan)) {
+      return false;
+    }
 
     final expectedPhones = plan.selectedFields
         .where((field) => field.kind == MergeFieldKind.phone)
@@ -153,7 +188,7 @@ class NativeMergeContactGateway implements MergeContactGateway {
         .map((value) => _normalizer.normalizePhone(value.number))
         .where((value) => value.isNotEmpty)
         .toSet();
-    if (!actualPhones.containsAll(expectedPhones)) return false;
+    if (!setEqualsStrings(expectedPhones, actualPhones)) return false;
 
     final expectedEmails = plan.selectedFields
         .where((field) => field.kind == MergeFieldKind.email)
@@ -164,11 +199,15 @@ class NativeMergeContactGateway implements MergeContactGateway {
         .map((value) => _normalizer.normalizeEmail(value.address))
         .where((value) => value.isNotEmpty)
         .toSet();
-    return actualEmails.containsAll(expectedEmails);
+    return setEqualsStrings(expectedEmails, actualEmails);
   }
 
   @override
-  Future<void> deleteContact(String id) => FlutterContacts.delete(id.trim());
+  Future<void> deleteContact(String id) async {
+    final normalized = id.trim();
+    if (normalized.isEmpty) throw StateError('merge_native_invalid_delete_id');
+    await FlutterContacts.delete(normalized);
+  }
 
   @override
   Future<bool> contactExists(String id) async {
@@ -183,17 +222,18 @@ class NativeMergeContactGateway implements MergeContactGateway {
 
   @override
   Future<bool> restoreContact(ContactRecord record) async {
-    if (record.notesAvailable ||
-        record.photoAvailable ||
-        record.addresses.isNotEmpty ||
-        record.organizations.isNotEmpty ||
-        record.birthday != null ||
-        record.isFavorite) {
-      return false;
-    }
-    final id = await FlutterContacts.create(
+    if (!_isBasicRecordRestorable(record)) return false;
+    final createdId = await FlutterContacts.create(
       Contact(
-        name: Name(first: record.name.displayName),
+        name: Name(
+          first: record.name.givenName.isNotEmpty
+              ? record.name.givenName
+              : record.name.displayName,
+          middle: record.name.middleName,
+          last: record.name.familyName,
+          prefix: record.name.prefix,
+          suffix: record.name.suffix,
+        ),
         phones: record.phones
             .map((value) => Phone(number: value.displayValue))
             .toList(growable: false),
@@ -202,48 +242,107 @@ class NativeMergeContactGateway implements MergeContactGateway {
             .toList(growable: false),
       ),
     );
-    return id.trim().isNotEmpty;
+    final id = createdId.trim();
+    if (id.isEmpty) return false;
+    _restoredContactIds[record.nativeId] = id;
+    return true;
   }
 
   @override
   Future<bool> verifyRestoredContact(ContactRecord record) async {
-    return false;
+    final restoredId = _restoredContactIds[record.nativeId];
+    if (restoredId == null || restoredId.isEmpty) return false;
+    final contact = await FlutterContacts.get(
+      restoredId,
+      properties: const <ContactProperty>{
+        ContactProperty.name,
+        ContactProperty.phone,
+        ContactProperty.email,
+      },
+    );
+    if (contact == null) return false;
+    final restored = _mapContact(contact, expectedId: restoredId);
+    final namesMatch =
+        _normalizer.exactNameKey(restored.name.displayName) ==
+            _normalizer.exactNameKey(record.name.displayName) ||
+        _normalizer.exactNameKey(restored.name.givenName) ==
+            _normalizer.exactNameKey(record.name.givenName);
+    if (!namesMatch) return false;
+    final expectedPhones = record.phones
+        .map((value) => value.canonicalKey)
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final restoredPhones = restored.phones
+        .map((value) => value.canonicalKey)
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    if (!setEqualsStrings(expectedPhones, restoredPhones)) return false;
+    final expectedEmails = record.emails
+        .map((value) => value.canonicalKey)
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final restoredEmails = restored.emails
+        .map((value) => value.canonicalKey)
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final verified = setEqualsStrings(expectedEmails, restoredEmails);
+    if (verified) _restoredContactIds.remove(record.nativeId);
+    return verified;
   }
 
-  Future<_NativeContactMetadata> _readNativeMetadata(String contactId) async {
-    if (!Platform.isAndroid) return const _NativeContactMetadata();
+  Future<Map<String, _NativeContactMetadata>> _readNativeMetadataBatch(
+    List<String> contactIds,
+  ) async {
+    if (!Platform.isAndroid) return const <String, _NativeContactMetadata>{};
+    final operationToken = MergePlanFactory.generateOperationId(
+      groupId: 'group-${contactIds.join('-')}',
+    );
     try {
       final raw = await _contactsChannel.invokeMapMethod<String, Object?>(
-        'getContactCapabilities',
-        <String, Object?>{'contactId': contactId},
+        'preflightContacts',
+        <String, Object?>{
+          'contactIds': contactIds,
+          'operationToken': operationToken,
+          'requiresWrite': false,
+        },
       );
-      if (raw == null || raw['found'] != true) {
-        return const _NativeContactMetadata();
+      final contacts = raw?['contacts'];
+      if (contacts is! List || contacts.length != contactIds.length) {
+        return const <String, _NativeContactMetadata>{};
       }
-      final update = _capabilityFromName(raw['update']);
-      final delete = _capabilityFromName(raw['delete']);
-      final accountTypes = _stringList(raw['accountTypes']);
-      final rawContactIds = _stringList(raw['rawContactIds']);
-      final sourceKind = _sourceKind(accountTypes);
-      return _NativeContactMetadata(
-        capabilities: ContactCapabilities(
-          update: update,
-          delete: delete,
-          limitationCode: raw['hasMixedCapabilities'] == true
-              ? 'mixed_raw_contact_capabilities'
-              : null,
-        ),
-        source: ContactSourceInfo(
-          sourceId: rawContactIds.length == 1 ? rawContactIds.single : '',
-          sourceName: accountTypes.length == 1 ? accountTypes.single : '',
-          kind: sourceKind,
-        ),
-      );
+      final result = <String, _NativeContactMetadata>{};
+      for (var index = 0; index < contactIds.length; index++) {
+        final item = contacts[index];
+        if (item is! Map || item['found'] != true) continue;
+        result[contactIds[index]] = _metadataFromMap(item);
+      }
+      return Map<String, _NativeContactMetadata>.unmodifiable(result);
     } on PlatformException {
-      return const _NativeContactMetadata();
+      return const <String, _NativeContactMetadata>{};
     } on Object {
-      return const _NativeContactMetadata();
+      return const <String, _NativeContactMetadata>{};
     }
+  }
+
+  _NativeContactMetadata _metadataFromMap(Map<dynamic, dynamic> raw) {
+    final update = _capabilityFromName(raw['update']);
+    final delete = _capabilityFromName(raw['delete']);
+    final profile = raw['isProfile'] == true;
+    final mixed = raw['hasMixedCapabilities'] == true;
+    final fingerprint = raw['metadataFingerprint'];
+    return _NativeContactMetadata(
+      capabilities: ContactCapabilities(
+        update: profile ? ContactAccessCapability.readOnly : update,
+        delete: profile ? ContactAccessCapability.readOnly : delete,
+        limitationCode: profile
+            ? 'profile_contact'
+            : mixed
+                ? 'mixed_raw_contact_capabilities'
+                : fingerprint is String && fingerprint.isNotEmpty
+                    ? 'native_metadata_verified'
+                    : 'native_metadata_unverified',
+      ),
+    );
   }
 
   ContactAccessCapability _capabilityFromName(Object? value) {
@@ -254,28 +353,38 @@ class NativeMergeContactGateway implements MergeContactGateway {
     };
   }
 
-  List<String> _stringList(Object? value) {
-    if (value is! List) return const <String>[];
-    return List<String>.unmodifiable(
-      value
-          .whereType<String>()
-          .map((item) => item.trim())
-          .where((item) => item.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort(),
-    );
+  bool _isBasicRecordRestorable(ContactRecord record) {
+    return !record.notesAvailable &&
+        !record.photoAvailable &&
+        record.addresses.isEmpty &&
+        record.organizations.isEmpty &&
+        record.birthday == null &&
+        !record.isFavorite;
   }
 
-  ContactSourceKind _sourceKind(List<String> accountTypes) {
-    final joined = accountTypes.join(' ').toLowerCase();
-    if (joined.contains('google')) return ContactSourceKind.google;
-    if (joined.contains('exchange')) return ContactSourceKind.exchange;
-    if (joined.contains('icloud') || joined.contains('apple')) {
-      return ContactSourceKind.iCloud;
+  String _cleanNameComponent(MergeSelectedField? field) {
+    return _normalizer.sanitizeText(field?.displayValue ?? '');
+  }
+
+  bool _structuredNameMatches(Name? actual, MergePlan plan) {
+    if (actual == null) return false;
+    final expected = <MergeFieldKind, String>{};
+    for (final field in plan.selectedFields) {
+      if (_structuredNameKinds.contains(field.kind)) {
+        expected[field.kind] = _normalizer.exactNameKey(field.displayValue);
+      }
     }
-    if (accountTypes.isEmpty) return ContactSourceKind.unknown;
-    return ContactSourceKind.other;
+    if (expected.isEmpty) return false;
+    final actualByKind = <MergeFieldKind, String>{
+      MergeFieldKind.givenName: _normalizer.exactNameKey(actual.first ?? ''),
+      MergeFieldKind.middleName: _normalizer.exactNameKey(actual.middle ?? ''),
+      MergeFieldKind.familyName: _normalizer.exactNameKey(actual.last ?? ''),
+      MergeFieldKind.prefix: _normalizer.exactNameKey(actual.prefix ?? ''),
+      MergeFieldKind.suffix: _normalizer.exactNameKey(actual.suffix ?? ''),
+    };
+    return expected.entries.every(
+      (entry) => actualByKind[entry.key] == entry.value,
+    );
   }
 
   ContactRecord _mapContact(
@@ -389,8 +498,17 @@ class NativeMergeContactGateway implements MergeContactGateway {
     );
   }
 
+  static const Set<MergeFieldKind> _structuredNameKinds = <MergeFieldKind>{
+    MergeFieldKind.givenName,
+    MergeFieldKind.middleName,
+    MergeFieldKind.familyName,
+    MergeFieldKind.prefix,
+    MergeFieldKind.suffix,
+  };
+
   static const Set<MergeFieldKind> _supportedCreateKinds = <MergeFieldKind>{
     MergeFieldKind.displayName,
+    ..._structuredNameKinds,
     MergeFieldKind.phone,
     MergeFieldKind.email,
   };
