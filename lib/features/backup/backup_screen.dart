@@ -13,6 +13,7 @@ import '../../shared/widgets/app_loading_indicator.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/confirmation_dialog.dart';
+import '../history/history_controller.dart';
 import 'backup_controller.dart';
 
 class BackupScreen extends StatefulWidget {
@@ -36,19 +37,31 @@ class _BackupScreenState extends State<BackupScreen> {
       if (controller.status == BackupStatus.idle) {
         unawaited(controller.load());
       }
+      final history = context.read<HistoryController>();
+      if (history.status == HistoryControllerStatus.idle) {
+        unawaited(history.load());
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<BackupController>();
+    final history = context.watch<HistoryController>();
+    final protectedIds = history.entries
+        .expand((entry) => entry.protectedBackupIds)
+        .toSet();
     return AppScaffold(
       title: 'Backup',
-      child: _buildContent(context, controller),
+      child: _buildContent(context, controller, protectedIds),
     );
   }
 
-  Widget _buildContent(BuildContext context, BackupController controller) {
+  Widget _buildContent(
+    BuildContext context,
+    BackupController controller,
+    Set<String> protectedIds,
+  ) {
     if ((controller.status == BackupStatus.idle ||
             controller.status == BackupStatus.loading) &&
         controller.backups.isEmpty) {
@@ -67,7 +80,7 @@ class _BackupScreenState extends State<BackupScreen> {
       return AppErrorState(
         title: 'Accesul la contacte este necesar',
         message:
-            'Backupul poate fi creat doar dupa acordarea accesului la contactele dispozitivului.',
+            'Backupul local nu poate fi creat fara contactele disponibile aplicatiei.',
         onRetry: () => unawaited(_createBackup(context, controller)),
         retryLabel: 'Creeaza backup',
       );
@@ -75,33 +88,42 @@ class _BackupScreenState extends State<BackupScreen> {
     if (controller.backups.isEmpty) {
       return AppEmptyState(
         icon: Icons.backup_outlined,
-        title: 'Nu exista copii de rezerva',
+        title: 'Nu exista backupuri locale',
         description:
-            'Creeaza o copie locala criptata si validata inainte de orice modificare a contactelor.',
+            'Creeaza o copie criptata a agendei inainte de operatiile care pot modifica contacte.',
         primaryButton: AppPrimaryButton(
-          label: controller.status == BackupStatus.creating
-              ? 'Se creeaza backupul'
-              : 'Creeaza backup',
+          label: 'Creeaza backup',
           icon: Icons.enhanced_encryption_outlined,
           isLoading: controller.status == BackupStatus.creating,
           onPressed: controller.isBusy
               ? null
               : () => unawaited(_createBackup(context, controller)),
         ),
-        isFullWidthButton: true,
       );
     }
 
+    final invalidCount = controller.backups.where((backup) => !backup.isValid).length;
+    final protectedCount = controller.backups
+        .where((backup) => protectedIds.contains(backup.id))
+        .length;
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
       children: <Widget>[
         const _BackupSecurityNotice(),
         const SizedBox(height: 16),
+        if (protectedCount > 0) ...<Widget>[
+          _BackupMessageCard(
+            icon: Icons.lock_clock_outlined,
+            message:
+                '$protectedCount backupuri sunt protejate de operatii cu undo disponibil si nu pot fi sterse momentan.',
+          ),
+          const SizedBox(height: 16),
+        ],
         AppPrimaryButton(
           label: controller.status == BackupStatus.creating
               ? 'Se creeaza backupul'
               : 'Creeaza backup nou',
-          icon: Icons.add_to_photos_outlined,
+          icon: Icons.enhanced_encryption_outlined,
           isLoading: controller.status == BackupStatus.creating,
           onPressed: controller.isBusy
               ? null
@@ -110,22 +132,22 @@ class _BackupScreenState extends State<BackupScreen> {
         if (controller.status == BackupStatus.permissionDenied) ...<Widget>[
           const SizedBox(height: 16),
           const _BackupMessageCard(
-            icon: Icons.lock_person_outlined,
+            icon: Icons.lock_outline_rounded,
             message:
-                'Accesul la contacte a fost refuzat. Backupurile existente raman disponibile, dar nu poate fi creat unul nou.',
+                'Permisiunea pentru contacte a fost refuzata. Backupurile existente raman disponibile.',
             isError: true,
           ),
         ],
         if (controller.status == BackupStatus.error) ...<Widget>[
           const SizedBox(height: 16),
-          const _BackupMessageCard(
+          _BackupMessageCard(
             icon: Icons.error_outline_rounded,
             message:
-                'Ultima operatie de backup nu a putut fi finalizata. Copiile validate anterior nu au fost modificate.',
+                'Ultima operatie de backup a esuat (${controller.errorCode ?? 'backup_error'}). Backupurile deja validate nu au fost eliminate.',
             isError: true,
           ),
         ],
-        if (controller.backups.any((backup) => !backup.isValid)) ...<Widget>[
+        if (invalidCount > 0) ...<Widget>[
           const SizedBox(height: 16),
           const _BackupMessageCard(
             icon: Icons.gpp_bad_outlined,
@@ -143,11 +165,17 @@ class _BackupScreenState extends State<BackupScreen> {
             child: _BackupCard(
               backup: backup,
               isBusy: controller.isBusy,
+              isProtected: protectedIds.contains(backup.id),
               onRestore: backup.isValid && !controller.isBusy
                   ? () => context.push(AppRoutes.restoreBackup(backup.id))
                   : null,
               onDelete: () => unawaited(
-                _confirmDelete(context, controller, backup),
+                _confirmDelete(
+                  context,
+                  controller,
+                  backup,
+                  protectedIds.contains(backup.id),
+                ),
               ),
             ),
           ),
@@ -163,8 +191,8 @@ class _BackupScreenState extends State<BackupScreen> {
     final backup = await controller.create();
     if (!context.mounted || backup == null) return;
     final message = backup.accessScope == BackupAccessScope.limited
-        ? 'Backup validat pentru contactele permise de accesul limitat iOS.'
-        : 'Backup criptat si validat cu succes.';
+        ? 'Backup manual validat pentru contactele permise de accesul limitat iOS.'
+        : 'Backup manual criptat si validat cu succes.';
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
@@ -172,15 +200,28 @@ class _BackupScreenState extends State<BackupScreen> {
     BuildContext context,
     BackupController controller,
     ContactBackup backup,
+    bool isProtected,
   ) async {
+    if (isProtected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Backupul este necesar pentru undo si nu poate fi sters pana cand dependinta nu este consumata.',
+          ),
+        ),
+      );
+      return;
+    }
+    final purpose = _purposeLabel(backup.purpose);
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Stergi copia de rezerva?',
+      title: 'Stergi backupul?',
       message:
-          'Fisierul local va fi eliminat definitiv. Contactele din agenda nu vor fi modificate.',
+          'Backupul de tip $purpose va fi eliminat definitiv din stocarea locala a aplicatiei. Aceasta actiune nu modifica agenda.',
       confirmText: 'Sterge',
       cancelText: 'Anuleaza',
       isDestructive: true,
+      barrierDismissible: false,
     );
     if (!confirmed || !context.mounted) return;
     final deleted = await controller.delete(backup.id);
@@ -188,9 +229,7 @@ class _BackupScreenState extends State<BackupScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          deleted
-              ? 'Copia de rezerva a fost stearsa.'
-              : 'Copia de rezerva nu a putut fi stearsa.',
+          deleted ? 'Backup sters.' : 'Backupul nu a putut fi sters.',
         ),
       ),
     );
@@ -202,17 +241,17 @@ class _BackupSecurityNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    return const AppCard(
+      semanticLabel:
+          'Backupurile sunt locale, criptate si protejate de operatiile care necesita undo',
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(Icons.shield_outlined,
-              color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 12),
+          Icon(Icons.shield_outlined),
+          SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Copiile sunt criptate, pastrate doar in spatiul intern al aplicatiei si verificate prin autentificarea criptografica a continutului.',
-              style: Theme.of(context).textTheme.bodyMedium,
+              'Copiile sunt pastrate local si criptat. Backupurile de siguranta legate de undo sunt protejate automat impotriva stergerii din acest ecran.',
             ),
           ),
         ],
@@ -229,7 +268,7 @@ class _BackupMessageCard extends StatelessWidget {
   const _BackupMessageCard({
     required this.icon,
     required this.message,
-    required this.isError,
+    this.isError = false,
   });
 
   @override
@@ -243,9 +282,7 @@ class _BackupMessageCard extends StatelessWidget {
         children: <Widget>[
           Icon(icon, color: color),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
-          ),
+          Expanded(child: Text(message)),
         ],
       ),
     );
@@ -255,12 +292,14 @@ class _BackupMessageCard extends StatelessWidget {
 class _BackupCard extends StatelessWidget {
   final ContactBackup backup;
   final bool isBusy;
+  final bool isProtected;
   final VoidCallback? onRestore;
   final VoidCallback onDelete;
 
   const _BackupCard({
     required this.backup,
     required this.isBusy,
+    required this.isProtected,
     required this.onRestore,
     required this.onDelete,
   });
@@ -275,10 +314,11 @@ class _BackupCard extends StatelessWidget {
       BackupAccessScope.limited => 'Acces limitat iOS',
       BackupAccessScope.unknown => 'Domeniu necunoscut',
     };
+    final purposeLabel = _purposeLabel(backup.purpose);
     return AppCard(
       semanticLabel: backup.isValid
-          ? 'Backup valid cu ${backup.contactCount} contacte, $scopeLabel'
-          : 'Backup invalid, restaurarea este blocata',
+          ? 'Backup valid, $purposeLabel, ${backup.contactCount} contacte, $scopeLabel${isProtected ? ', protejat pentru undo' : ''}'
+          : 'Backup invalid, restaurarea este blocata${isProtected ? ', protejat pentru undo' : ''}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -312,13 +352,35 @@ class _BackupCard extends StatelessWidget {
                           : 'Fisierul nu a trecut verificarea de integritate.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: <Widget>[
+                        _BackupBadge(
+                          icon: backup.isSafetyBackup
+                              ? Icons.health_and_safety_outlined
+                              : Icons.person_outline_rounded,
+                          label: purposeLabel,
+                        ),
+                        if (isProtected)
+                          const _BackupBadge(
+                            icon: Icons.lock_clock_outlined,
+                            label: 'Protejat pentru undo',
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
               IconButton(
-                tooltip: 'Sterge backupul',
-                onPressed: isBusy ? null : onDelete,
-                icon: const Icon(Icons.delete_outline_rounded),
+                tooltip: isProtected
+                    ? 'Backup protejat - stergerea este blocata'
+                    : 'Sterge backupul',
+                onPressed: isBusy || isProtected ? null : onDelete,
+                icon: Icon(
+                  isProtected ? Icons.lock_outline_rounded : Icons.delete_outline_rounded,
+                ),
               ),
             ],
           ),
@@ -334,13 +396,48 @@ class _BackupCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  String _formatDate(DateTime value) {
-    final local = value.toLocal();
-    final day = local.day.toString().padLeft(2, '0');
-    final month = local.month.toString().padLeft(2, '0');
-    final hour = local.hour.toString().padLeft(2, '0');
-    final minute = local.minute.toString().padLeft(2, '0');
-    return '$day.$month.${local.year}, $hour:$minute';
+class _BackupBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _BackupBadge({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: label,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(icon, size: 15),
+              const SizedBox(width: 5),
+              Text(label, style: Theme.of(context).textTheme.labelSmall),
+            ],
+          ),
+        ),
+      ),
+    );
   }
+}
+
+String _purposeLabel(BackupPurpose purpose) => switch (purpose) {
+      BackupPurpose.manual => 'Manual',
+      BackupPurpose.mergeSafety => 'Siguranta fuziune',
+      BackupPurpose.restoreSafety => 'Siguranta restaurare',
+      BackupPurpose.undoSafety => 'Siguranta undo',
+    };
+
+String _formatDate(DateTime value) {
+  final local = value.toLocal();
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${two(local.day)}.${two(local.month)}.${local.year} '
+      '${two(local.hour)}:${two(local.minute)}';
 }
