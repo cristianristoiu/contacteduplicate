@@ -15,6 +15,8 @@ import '../dashboard/scan_controller.dart';
 import 'contact_copy_action.dart';
 import 'contact_copy_controller.dart';
 import 'merge_detail_controller.dart';
+import 'merge_operation_controller.dart';
+import 'merge_operation_panel.dart';
 import 'merge_preview_editor.dart';
 
 class DuplicateDetailsScreen extends StatelessWidget {
@@ -61,9 +63,7 @@ class DuplicateDetailsScreen extends StatelessWidget {
     }
 
     return ChangeNotifierProvider<MergeDetailController>(
-      key: ValueKey<String>(
-        '${group.id}:${scanController.scanRevision}',
-      ),
+      key: ValueKey<String>('${group.id}:${scanController.scanRevision}'),
       create: (_) => MergeDetailController(group),
       child: _DuplicateDetailsContent(group: group),
     );
@@ -89,6 +89,7 @@ class _DuplicateDetailsContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final mergeController = context.watch<MergeDetailController>();
     final copyController = context.watch<ContactCopyController>();
+    final operationController = context.watch<MergeOperationController>();
     final selectedValueCount = mergeController.selectedPhones.length +
         mergeController.selectedEmails.length;
     final sourceContactIds = group.contacts
@@ -104,61 +105,78 @@ class _DuplicateDetailsContent extends StatelessWidget {
           ),
         )
         .toList(growable: false);
-    final editorLocked = copyController.matchesSources(sourceContactIds) &&
+    final copyLocksEditor = copyController.matchesSources(sourceContactIds) &&
         _locksEditor(copyController.status);
+    final editorLocked = copyLocksEditor || operationController.editorLocked;
 
-    return AppScaffold(
-      title: 'Previzualizare fuziune',
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        children: <Widget>[
-          AppCard(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Icon(
-                  Icons.visibility_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Mod de previzualizare: poti alege campurile rezultatului, dar nicio selectie nu modifica agenda dispozitivului.',
-                    style: Theme.of(context).textTheme.bodyMedium,
+    return PopScope(
+      canPop: !operationController.isRunning,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop || !operationController.isRunning) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Navigarea este blocata cat timp fuziunea modifica sau verifica agenda.',
+            ),
+          ),
+        );
+      },
+      child: AppScaffold(
+        title: 'Previzualizare fuziune',
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          children: <Widget>[
+            AppCard(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Icon(
+                    Icons.visibility_outlined,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      editorLocked
+                          ? 'Previzualizarea este blocata cat timp operatia curenta trebuie sa ramana verificabila.'
+                          : 'Poti alege campurile rezultatului. Nicio selectie din editor nu modifica agenda.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          _GroupSummary(group: group),
-          const SizedBox(height: 24),
-          Text(
-            'Contacte sursa',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 12),
-          ...group.contacts.map(
-            (contact) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _ContactDetailsCard(contact: contact),
+            const SizedBox(height: 16),
+            _GroupSummary(group: group),
+            const SizedBox(height: 24),
+            Text(
+              'Contacte sursa',
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
-          ),
-          const SizedBox(height: 12),
-          MergePreviewEditor(locked: editorLocked),
-          const SizedBox(height: 28),
-          BackupMergeGate(
-            previewValid: mergeController.isValid,
-            sourceContactCount: group.contacts.length,
-            selectedValueCount: selectedValueCount,
-            sourceContactIds: sourceContactIds,
-            sourceSnapshots: sourceSnapshots,
-          ),
-          ContactCopyAction(
-            sourceContactIds: sourceContactIds,
-            sourceSnapshots: sourceSnapshots,
-          ),
-        ],
+            const SizedBox(height: 12),
+            ...group.contacts.map(
+              (contact) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ContactDetailsCard(contact: contact),
+              ),
+            ),
+            const SizedBox(height: 12),
+            MergePreviewEditor(locked: editorLocked),
+            const SizedBox(height: 28),
+            BackupMergeGate(
+              previewValid: mergeController.isValid,
+              sourceContactCount: group.contacts.length,
+              selectedValueCount: selectedValueCount,
+              sourceContactIds: sourceContactIds,
+              sourceSnapshots: sourceSnapshots,
+            ),
+            MergeOperationPanel(group: group),
+            ContactCopyAction(
+              sourceContactIds: sourceContactIds,
+              sourceSnapshots: sourceSnapshots,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -187,8 +205,15 @@ class _GroupSummary extends StatelessWidget {
       if (group.reasons.contains(DuplicateMatchReason.company)) 'companie',
     ];
     final reasonSummary = reasons.isEmpty ? 'date corelate' : reasons.join(', ');
+    final confidenceLabel = group.confidenceScore >= 95
+        ? 'sigur'
+        : group.confidenceScore >= 80
+            ? 'probabil'
+            : 'verificare manuala';
 
     return AppCard(
+      semanticLabel:
+          '${group.contacts.length} contacte, scor de incredere ${group.confidenceScore} din 100, nivel $confidenceLabel, potrivire prin $reasonSummary',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -200,19 +225,25 @@ class _GroupSummary extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  child: Text(
-                    'Scor ${group.confidenceScore}',
-                    style: Theme.of(context).textTheme.labelLarge,
+              Semantics(
+                label:
+                    'Scor de incredere ${group.confidenceScore} din 100, $confidenceLabel',
+                child: ExcludeSemantics(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      child: Text(
+                        'Scor ${group.confidenceScore}',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -251,7 +282,15 @@ class _ContactDetailsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final record = contact.record;
+    final capabilityLabel = record == null
+        ? 'capabilitate necunoscuta'
+        : record.capabilities.isFullyWritable
+            ? 'modificabil'
+            : record.capabilities.isKnownReadOnly
+                ? 'read-only'
+                : 'capabilitate necunoscuta';
     return AppCard(
+      semanticLabel: '${contact.displayName}, $capabilityLabel',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -267,6 +306,11 @@ class _ContactDetailsCard extends StatelessWidget {
                     Text(
                       contact.displayName,
                       style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      capabilityLabel,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                     if (!contact.hasStableNativeId)
                       Text(
@@ -318,15 +362,10 @@ class _ContactValues extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = values.isEmpty ? emptyLabel : values.join('\n');
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Icon(
-          icon,
-          size: 20,
-          color: Theme.of(context).colorScheme.primary,
-        ),
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 10),
         Expanded(
           child: SelectableText(
