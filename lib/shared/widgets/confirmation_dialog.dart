@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/platform/app_haptics.dart';
@@ -21,10 +23,7 @@ class ConfirmationDialog extends StatelessWidget {
     required this.confirmText,
     required this.cancelText,
     this.isDestructive = false,
-  })  : assert(title.trim().isNotEmpty),
-        assert(message.trim().isNotEmpty),
-        assert(confirmText.trim().isNotEmpty),
-        assert(cancelText.trim().isNotEmpty);
+  });
 
   static Future<bool> show(
     BuildContext context, {
@@ -33,38 +32,61 @@ class ConfirmationDialog extends StatelessWidget {
     required String confirmText,
     required String cancelText,
     bool isDestructive = false,
-    bool barrierDismissible = true,
+    bool barrierDismissible = false,
   }) async {
-    assert(title.trim().isNotEmpty);
-    assert(message.trim().isNotEmpty);
-    assert(confirmText.trim().isNotEmpty);
-    assert(cancelText.trim().isNotEmpty);
+    final normalizedTitle = title.trim();
+    final normalizedMessage = message.trim();
+    final normalizedConfirm = confirmText.trim();
+    final normalizedCancel = cancelText.trim();
+    if (normalizedTitle.isEmpty ||
+        normalizedMessage.isEmpty ||
+        normalizedConfirm.isEmpty ||
+        normalizedCancel.isEmpty ||
+        normalizedConfirm == normalizedCancel) {
+      return false;
+    }
 
     final result = await AppDialog.show<bool>(
       context,
-      title: title,
-      barrierDismissible: barrierDismissible,
-      child: _ConfirmationMessage(message: message),
+      title: normalizedTitle,
+      barrierDismissible: isDestructive ? false : barrierDismissible,
+      child: _ConfirmationMessage(
+        message: normalizedMessage,
+        isDestructive: isDestructive,
+      ),
       actions: _buildActions(
-        confirmText: confirmText,
-        cancelText: cancelText,
+        confirmText: normalizedConfirm,
+        cancelText: normalizedCancel,
         isDestructive: isDestructive,
       ),
     );
-
     return result ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
+    final normalizedTitle = title.trim();
+    final normalizedMessage = message.trim();
+    final normalizedConfirm = confirmText.trim();
+    final normalizedCancel = cancelText.trim();
+    if (normalizedTitle.isEmpty ||
+        normalizedMessage.isEmpty ||
+        normalizedConfirm.isEmpty ||
+        normalizedCancel.isEmpty ||
+        normalizedConfirm == normalizedCancel) {
+      return const SizedBox.shrink();
+    }
     return AppDialog(
-      title: title,
+      title: normalizedTitle,
       actions: _buildActions(
-        confirmText: confirmText,
-        cancelText: cancelText,
+        confirmText: normalizedConfirm,
+        cancelText: normalizedCancel,
         isDestructive: isDestructive,
       ),
-      child: _ConfirmationMessage(message: message),
+      child: _ConfirmationMessage(
+        message: normalizedMessage,
+        isDestructive: isDestructive,
+      ),
     );
   }
 
@@ -75,12 +97,11 @@ class ConfirmationDialog extends StatelessWidget {
   }) {
     return <Widget>[
       Builder(
-        builder: (dialogContext) {
-          return AppSecondaryButton(
-            label: cancelText,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          );
-        },
+        builder: (dialogContext) => AppSecondaryButton(
+          label: cancelText,
+          semanticLabel: 'Anuleaza: $cancelText',
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+        ),
       ),
       Builder(
         builder: (dialogContext) {
@@ -91,9 +112,9 @@ class ConfirmationDialog extends StatelessWidget {
               onPressed: onConfirm,
             );
           }
-
           return AppPrimaryButton(
             label: confirmText,
+            semanticLabel: 'Confirma: $confirmText',
             onPressed: onConfirm,
           );
         },
@@ -104,15 +125,25 @@ class ConfirmationDialog extends StatelessWidget {
 
 class _ConfirmationMessage extends StatelessWidget {
   final String message;
+  final bool isDestructive;
 
-  const _ConfirmationMessage({required this.message});
+  const _ConfirmationMessage({
+    required this.message,
+    required this.isDestructive,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      message,
-      style: AppTextStyles.body.copyWith(
-        color: Theme.of(context).colorScheme.onSurface,
+    return Semantics(
+      liveRegion: isDestructive,
+      label: isDestructive ? 'Atentie. $message' : message,
+      child: ExcludeSemantics(
+        child: Text(
+          message,
+          style: AppTextStyles.body.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
       ),
     );
   }
@@ -129,24 +160,36 @@ class _DangerConfirmationButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: () {
-        AppHaptics.importantAction();
-        onPressed();
-      },
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColors.error,
-        foregroundColor: Colors.white,
-        minimumSize: const Size(0, 52),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        textStyle: AppTextStyles.label.copyWith(
-          fontWeight: FontWeight.w800,
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: 'Actiune distructiva: $label',
+      child: ExcludeSemantics(
+        child: FilledButton(
+          onPressed: () {
+            AppHaptics.importantAction();
+            onPressed();
+          },
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(0, 52),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            textStyle: AppTextStyles.label.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          child: Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
-      child: Text(label),
     );
   }
 }
