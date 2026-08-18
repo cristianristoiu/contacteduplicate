@@ -27,6 +27,18 @@ class HistoryController extends ChangeNotifier {
   bool get undoableOnly => _undoableOnly;
   bool get isLoading => _status == HistoryControllerStatus.loading;
   bool get hasFilters => _types.isNotEmpty || _outcomes.isNotEmpty || _undoableOnly;
+  bool get canEvaluateBackupProtection =>
+      _status == HistoryControllerStatus.ready;
+
+  Set<String> get loadedProtectedBackupIds => Set<String>.unmodifiable(
+        _entries.expand((entry) => entry.protectedBackupIds).toSet(),
+      );
+
+  bool isBackupProtected(String backupId) {
+    final id = backupId.trim();
+    if (id.isEmpty || !canEvaluateBackupProtection) return true;
+    return loadedProtectedBackupIds.contains(id);
+  }
 
   List<OperationHistoryEntry> get visibleEntries {
     final filtered = _entries.where((entry) {
@@ -78,6 +90,8 @@ class HistoryController extends ChangeNotifier {
       _entries = List<OperationHistoryEntry>.unmodifiable(
         _entries.where((value) => value.operationId != id),
       );
+      _status = HistoryControllerStatus.ready;
+      _errorCode = null;
       _notifySafely();
       return true;
     } on Object {
@@ -114,11 +128,19 @@ class HistoryController extends ChangeNotifier {
     }
   }
 
-  Future<Set<String>> protectedBackupIds() async {
+  Future<Set<String>?> loadProtectedBackupIds() async {
+    if (!canEvaluateBackupProtection) return null;
     try {
-      return await _repository.protectedBackupIds();
+      final ids = await _repository.protectedBackupIds();
+      if (_isDisposed) return null;
+      return Set<String>.unmodifiable(ids);
     } on Object {
-      return <String>{};
+      if (!_isDisposed) {
+        _status = HistoryControllerStatus.error;
+        _errorCode = 'history_backup_protection_failed';
+        _notifySafely();
+      }
+      return null;
     }
   }
 
