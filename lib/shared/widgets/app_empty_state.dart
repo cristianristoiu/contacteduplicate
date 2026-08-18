@@ -39,32 +39,39 @@ class AppEmptyState extends StatelessWidget {
     final visual = _buildVisual(isDark);
     final footer = _buildFooter();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          if (visual != null) ...<Widget>[
-            visual,
-            const SizedBox(height: 32),
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            if (visual != null) ...<Widget>[
+              visual,
+              const SizedBox(height: 32),
+            ],
+            Semantics(
+              header: true,
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.h2.copyWith(color: titleColor),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(color: descriptionColor),
+            ),
+            if (footer != null) ...<Widget>[
+              const SizedBox(height: 24),
+              footer,
+            ],
           ],
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.h2.copyWith(color: titleColor),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            description,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.body.copyWith(color: descriptionColor),
-          ),
-          if (footer != null) ...<Widget>[
-            const SizedBox(height: 24),
-            footer,
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -72,7 +79,6 @@ class AppEmptyState extends StatelessWidget {
   Widget? _buildVisual(bool isDark) {
     final fallbackIcon = _buildFallbackIcon(isDark);
     final normalizedPath = illustrationPath?.trim();
-
     if (normalizedPath != null && normalizedPath.isNotEmpty) {
       return _EmptyStateIllustration(
         path: normalizedPath,
@@ -80,43 +86,30 @@ class AppEmptyState extends StatelessWidget {
         fallback: fallbackIcon,
       );
     }
-
     return fallbackIcon;
   }
 
   Widget? _buildFallbackIcon(bool isDark) {
-    if (icon == null) {
-      return null;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.blue500.withOpacity(isDark ? 0.1 : 0.08),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
-        size: 64,
-        color: AppColors.blue500,
+    if (icon == null) return null;
+    return ExcludeSemantics(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.blue500.withOpacity(isDark ? 0.1 : 0.08),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 64, color: AppColors.blue500),
       ),
     );
   }
 
   Widget? _buildFooter() {
     final button = primaryButton;
-
     if (button != null) {
-      if (isFullWidthButton) {
-        return SizedBox(
-          width: double.infinity,
-          child: button,
-        );
-      }
-
-      return button;
+      return isFullWidthButton
+          ? SizedBox(width: double.infinity, child: button)
+          : button;
     }
-
     return action;
   }
 }
@@ -143,19 +136,15 @@ class _EmptyStateIllustrationState extends State<_EmptyStateIllustration> {
   @override
   void initState() {
     super.initState();
-    _svgContent = _loadSvg();
+    _svgContent = rootBundle.loadString(widget.path);
   }
 
   @override
   void didUpdateWidget(covariant _EmptyStateIllustration oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.path != widget.path) {
-      _svgContent = _loadSvg();
+      _svgContent = rootBundle.loadString(widget.path);
     }
-  }
-
-  Future<String> _loadSvg() {
-    return rootBundle.loadString(widget.path);
   }
 
   @override
@@ -168,12 +157,12 @@ class _EmptyStateIllustrationState extends State<_EmptyStateIllustration> {
             snapshot.data == null) {
           return widget.fallback ?? SizedBox(height: widget.height);
         }
-
-        return SvgPicture.string(
-          snapshot.data!,
-          height: widget.height,
-          fit: BoxFit.contain,
-          semanticsLabel: 'Ilustratie: ${widget.path}',
+        return ExcludeSemantics(
+          child: SvgPicture.string(
+            snapshot.data!,
+            height: widget.height,
+            fit: BoxFit.contain,
+          ),
         );
       },
     );
